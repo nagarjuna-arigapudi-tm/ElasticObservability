@@ -1,0 +1,6 @@
+Cluster Name,API Endpoint,Kibana Endpoint,Owner,Node Name,IP Address,Zone,Data Center,Status,Environment,Node Type
+prod-cluster-01,https://es-prod-01.example.com:9200,https://kb-prod-01.example.com:5601,Platform Team,es-prod-node-01,10.0.1.10,us-east-1a,DC1,active,production,master data
+prod-cluster-01,https://es-prod-01.example.com:9200,https://kb-prod-01.example.com:5601,Platform Team,es-prod-node-02,10.0.1.11,us-east-1b,DC1,active,production,master data
+prod-cluster-01,https://es-prod-01.example.com:9200,https://kb-prod-01.example.com:5601,Platform Team,es-prod-node-03,10.0.1.12,us-east-1c,DC1,active,production,data
+dev-cluster-01,https://es-dev-01.example.com:9200,https://kb-dev-01.example.com:5601,Dev Team,es-dev-node-01,10.0.2.10,us-west-2a,DC2,active,dev,master data kibana
+uat-cluster-01,https://es-uat-01.example.com:9200,https://kb-uat-01.example.com:5601,QA Team,es-uat-node-01,10.0.3.10,us-west-2b,DC2,active,uat,master data

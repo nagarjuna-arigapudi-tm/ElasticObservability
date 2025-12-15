@@ -1,0 +1,12 @@
+logLevel: info
+metricsPort: 9091
+apiPort: 9092
+historyForIndices: 20
+out_dir: ./outputs
+config_dir: ./configs
+
+# Optional: TLS certificate configuration for API server
+cert:
+  cert: ""
+  key: ""
+  caCert: ""
