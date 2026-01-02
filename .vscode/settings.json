@@ -1,0 +1,107 @@
+{
+    // Go extension settings
+    "go.useLanguageServer": true,
+    "go.lintTool": "golangci-lint",
+    "go.lintOnSave": "workspace",
+    "go.formatTool": "gofmt",
+    "go.formatOnSave": true,
+    "go.vetOnSave": "workspace",
+    "go.buildOnSave": "off",
+    "go.installDependenciesWhenBuilding": true,
+    "go.buildFlags": [],
+    "go.testFlags": ["-v"],
+    "go.testTimeout": "30s",
+    "go.coverOnSave": false,
+    "go.coverageDecorator": {
+        "type": "gutter",
+        "coveredHighlightColor": "rgba(64,128,64,0.5)",
+        "uncoveredHighlightColor": "rgba(128,64,64,0.5)",
+        "coveredGutterStyle": "blockgreen",
+        "uncoveredGutterStyle": "blockred"
+    },
+    
+    // Go language features
+    "go.autocompleteUnimportedPackages": true,
+    "go.gocodeAutoBuild": false,
+    "go.inferGopath": false,
+    
+    // Editor settings for Go files
+    "[go]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        },
+        "editor.suggest.snippetsPreventQuickSuggestions": false,
+        "editor.tabSize": 4,
+        "editor.insertSpaces": false,
+        "editor.defaultFormatter": "golang.go"
+    },
+    
+    "[go.mod]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    },
+    
+    // File associations
+    "files.associations": {
+        "*.yaml": "yaml",
+        "*.yml": "yaml",
+        "Makefile": "makefile"
+    },
+    
+    // Exclude patterns
+    "files.exclude": {
+        "**/.git": true,
+        "**/.DS_Store": true,
+        "**/elasticobservability": true,
+        "**/elasticobservability.exe": true,
+        "**/*.exe": true
+    },
+    
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/bower_components": true,
+        "**/*.code-search": true,
+        "**/logs": true,
+        "**/outputs": true
+    },
+    
+    // File watcher
+    "files.watcherExclude": {
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/node_modules/**": true,
+        "**/logs/**": true,
+        "**/outputs/**": true
+    },
+    
+    // Terminal settings for Windows
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "terminal.integrated.profiles.windows": {
+        "PowerShell": {
+            "source": "PowerShell",
+            "icon": "terminal-powershell"
+        },
+        "Command Prompt": {
+            "path": [
+                "${env:windir}\\Sysnative\\cmd.exe",
+                "${env:windir}\\System32\\cmd.exe"
+            ],
+            "args": [],
+            "icon": "terminal-cmd"
+        },
+        "Git Bash": {
+            "source": "Git Bash"
+        }
+    },
+    
+    // Debug settings
+    "debug.internalConsoleOptions": "openOnSessionStart",
+    "debug.openDebug": "openOnDebugBreak",
+    "debug.showInStatusBar": "always",
+    
+    // Recommended extensions
+    "extensions.ignoreRecommendations": false
+}

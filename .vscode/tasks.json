@@ -1,0 +1,194 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "go",
+            "args": [
+                "build",
+                "-o",
+                "${workspaceFolder}/elasticobservability.exe",
+                "${workspaceFolder}/cmd/main.go"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [
+                "$go"
+            ]
+        },
+        {
+            "label": "build (Linux/macOS)",
+            "type": "shell",
+            "command": "go",
+            "args": [
+                "build",
+                "-o",
+                "${workspaceFolder}/elasticobservability",
+                "${workspaceFolder}/cmd/main.go"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [
+                "$go"
+            ]
+        },
+        {
+            "label": "run",
+            "type": "shell",
+            "command": "${workspaceFolder}/elasticobservability.exe",
+            "args": [
+                "-config",
+                "${workspaceFolder}/config.yaml"
+            ],
+            "dependsOn": [
+                "build"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "clean",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-Command",
+                "Remove-Item -Path '${workspaceFolder}/elasticobservability.exe' -ErrorAction SilentlyContinue; Remove-Item -Path '${workspaceFolder}/logs' -Recurse -ErrorAction SilentlyContinue; Remove-Item -Path '${workspaceFolder}/outputs' -Recurse -ErrorAction SilentlyContinue"
+            ],
+            "windows": {
+                "command": "powershell",
+                "args": [
+                    "-Command",
+                    "Remove-Item -Path '${workspaceFolder}/elasticobservability.exe' -ErrorAction SilentlyContinue; Remove-Item -Path '${workspaceFolder}/logs' -Recurse -ErrorAction SilentlyContinue; Remove-Item -Path '${workspaceFolder}/outputs' -Recurse -ErrorAction SilentlyContinue"
+                ]
+            },
+            "linux": {
+                "command": "sh",
+                "args": [
+                    "-c",
+                    "rm -f ${workspaceFolder}/elasticobservability; rm -rf ${workspaceFolder}/logs; rm -rf ${workspaceFolder}/outputs"
+                ]
+            },
+            "osx": {
+                "command": "sh",
+                "args": [
+                    "-c",
+                    "rm -f ${workspaceFolder}/elasticobservability; rm -rf ${workspaceFolder}/logs; rm -rf ${workspaceFolder}/outputs"
+                ]
+            },
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "test",
+            "type": "shell",
+            "command": "go",
+            "args": [
+                "test",
+                "-v",
+                "./..."
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": true
+            },
+            "problemMatcher": [
+                "$go"
+            ]
+        },
+        {
+            "label": "go mod tidy",
+            "type": "shell",
+            "command": "go",
+            "args": [
+                "mod",
+                "tidy"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "setup directories",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-Command",
+                "New-Item -ItemType Directory -Path '${workspaceFolder}/logs' -Force | Out-Null; New-Item -ItemType Directory -Path '${workspaceFolder}/outputs' -Force | Out-Null; New-Item -ItemType Directory -Path '${workspaceFolder}/configs/oneTime' -Force | Out-Null; New-Item -ItemType Directory -Path '${workspaceFolder}/configs/processedOneTime' -Force | Out-Null; New-Item -ItemType Directory -Path '${workspaceFolder}/data' -Force | Out-Null"
+            ],
+            "windows": {
+                "command": "powershell",
+                "args": [
+                    "-Command",
+                    "New-Item -ItemType Directory -Path '${workspaceFolder}/logs' -Force | Out-Null; New-Item -ItemType Directory -Path '${workspaceFolder}/outputs' -Force | Out-Null; New-Item -ItemType Directory -Path '${workspaceFolder}/configs/oneTime' -Force | Out-Null; New-Item -ItemType Directory -Path '${workspaceFolder}/configs/processedOneTime' -Force | Out-Null; New-Item -ItemType Directory -Path '${workspaceFolder}/data' -Force | Out-Null"
+                ]
+            },
+            "linux": {
+                "command": "sh",
+                "args": [
+                    "-c",
+                    "mkdir -p ${workspaceFolder}/logs ${workspaceFolder}/outputs ${workspaceFolder}/configs/oneTime ${workspaceFolder}/configs/processedOneTime ${workspaceFolder}/data"
+                ]
+            },
+            "osx": {
+                "command": "sh",
+                "args": [
+                    "-c",
+                    "mkdir -p ${workspaceFolder}/logs ${workspaceFolder}/outputs ${workspaceFolder}/configs/oneTime ${workspaceFolder}/configs/processedOneTime ${workspaceFolder}/data"
+                ]
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": []
+        }
+    ]
+}

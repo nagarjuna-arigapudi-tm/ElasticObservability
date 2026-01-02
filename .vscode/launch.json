@@ -1,0 +1,85 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch ElasticObservability",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/cmd/main.go",
+            "args": [
+                "-config",
+                "${workspaceFolder}/config.yaml"
+            ],
+            "env": {},
+            "showLog": true,
+            "trace": "verbose"
+        },
+        {
+            "name": "Launch with custom config",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/cmd/main.go",
+            "args": [
+                "-config",
+                "${workspaceFolder}/config.yaml",
+                "-log-dir",
+                "${workspaceFolder}/logs"
+            ],
+            "env": {},
+            "showLog": true
+        },
+        {
+            "name": "Attach to Process",
+            "type": "go",
+            "request": "attach",
+            "mode": "local",
+            "processId": 0,
+            "showLog": true
+        },
+        {
+            "name": "Debug Current File",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${file}",
+            "showLog": true
+        },
+        {
+            "name": "Debug Tests",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceFolder}",
+            "args": [
+                "-test.v"
+            ],
+            "showLog": true
+        },
+        {
+            "name": "Debug Current Test",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${fileDirname}",
+            "showLog": true
+        },
+        {
+            "name": "Debug Package",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/pkg/${input:packageName}",
+            "showLog": true
+        }
+    ],
+    "inputs": [
+        {
+            "id": "packageName",
+            "type": "promptString",
+            "description": "Enter the package name to debug (e.g., jobs, api, scheduler)",
+            "default": "jobs"
+        }
+    ]
+}

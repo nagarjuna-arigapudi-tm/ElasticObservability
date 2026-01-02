@@ -34,13 +34,23 @@ jobs:
             column: "Node Type"
             function: splitString
 
-  # Update active endpoints after loading clusters
+  # Update access credentials from CSV file (must run before endpoint validation)
+  - name: update_credentials
+    type: preDefined
+    internalJobName: updateAccessCredentials
+    enabled: true
+    initJob: true
+    dependsOn: ["load_clusters"]
+    parameters:
+      csv_fileName: ./data/credentials.csv
+
+  # Update active endpoints after loading credentials
   - name: update_endpoints
     type: preDefined
     internalJobName: updateActiveEndpoint
     enabled: true
     initJob: true
-    dependsOn: ["load_clusters"]
+    dependsOn: ["update_credentials"]
     parameters:
       excludeClusters: []
 
