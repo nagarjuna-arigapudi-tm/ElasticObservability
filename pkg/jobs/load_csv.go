@@ -56,6 +56,8 @@ func LoadFromMasterCSV(ctx context.Context, params map[string]interface{}) error
 			cluster = &types.ClusterData{
 				ClusterName: clusterName,
 				Active:      true, // Default to active
+				ClusterPort: "9200",
+				KibanaPort:  "5601",
 				Nodes:       make([]*types.Node, 0),
 			}
 			types.AllClusters[clusterName] = cluster

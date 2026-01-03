@@ -25,6 +25,8 @@ The `updateAccessCredentials` job updates access credentials for Elasticsearch c
 | ClientCert | string | Path to client certificate file (optional) |
 | ClientKey | string | Path to client key file (optional) |
 | Cacert | string | Path to CA certificate file (optional) |
+| ClusterPort | string | Port for cluster connections (optional, default: 9200) |
+| ApplicationLBs | string | Comma-separated load balancer URLs for ClusterSAN (optional) |
 
 ### PrefferedAccess Values
 
@@ -35,12 +37,14 @@ The `updateAccessCredentials` job updates access credentials for Elasticsearch c
 ### Sample CSV
 
 ```csv
-ClusterName,PrefferedAccess,APIKey,UserID,Password,ClientCert,ClientKey,Cacert
-prod-cluster-01,1,my-api-key-for-prod,,,,,
-dev-cluster-01,2,,elastic,dev-password123,,,
-uat-cluster-01,3,,,,/path/to/client.crt,/path/to/client.key,/path/to/ca.crt
-staging-cluster,1,staging-key-xyz,admin,backup-password,,
+ClusterName,PrefferedAccess,APIKey,UserID,Password,ClientCert,ClientKey,Cacert,ClusterPort,ApplicationLBs
+prod-cluster-01,1,my-api-key-for-prod,,,,,9200,https://prod-lb1.example.com,https://prod-lb2.example.com
+dev-cluster-01,2,,elastic,dev-password123,,,9200,https://dev-lb.example.com
+uat-cluster-01,3,,,,/path/to/client.crt,/path/to/client.key,/path/to/ca.crt,9243,https://uat-lb1.example.com,https://uat-lb2.example.com
+staging-cluster,1,staging-key-xyz,admin,backup-password,,9200,
 ```
+
+**Note**: `ApplicationLBs` is comma-separated list of load balancer URLs. Empty fields will not update existing values.
 
 ## Job Configuration
 

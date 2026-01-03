@@ -52,7 +52,7 @@ func RunCatIndices(ctx context.Context, params map[string]interface{}) error {
 		}
 
 		// Skip if no active endpoint
-		if cluster.ActiveEndPoint == "" {
+		if cluster.ActiveEndpoint == "" {
 			logger.JobWarn("runCatIndices", "Cluster %s: No active endpoint, skipping", clusterName)
 			failedCount++
 			continue
@@ -108,7 +108,7 @@ func fetchIndices(cluster *types.ClusterData) (CatIndicesResponse, error) {
 	}
 
 	url := fmt.Sprintf("%s/_cat/indices?format=json&pretty&h=health,status,docs.count,index,pri,creation.date,store.size,pri.store.size",
-		cluster.ActiveEndPoint)
+		cluster.ActiveEndpoint)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

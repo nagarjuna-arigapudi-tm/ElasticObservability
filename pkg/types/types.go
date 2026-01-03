@@ -29,19 +29,21 @@ type AccessCred struct {
 
 // ClusterData represents cluster information
 type ClusterData struct {
-	ClusterName     string     `json:"clusterName" yaml:"clusterName"`
-	ClusterUUID     string     `json:"clusterUUID" yaml:"clusterUUID"`
-	CurrentEndpoint string     `json:"currentEndpoint" yaml:"currentEndpoint"`
-	InsecureTLS     bool       `json:"insecureTLS" yaml:"insecureTLS"`
-	Active          bool       `json:"active" yaml:"active"`
-	ZoneIdentifier  string     `json:"zoneIdentifier" yaml:"zoneIdentifier"`
-	ClusterSAN      []string   `json:"clusterSAN" yaml:"clusterSAN"`
-	ActiveEndPoint  string     `json:"activeEndPoint" yaml:"activeEndPoint"`
-	KibanaSAN       []string   `json:"kibanaSAN" yaml:"kibanaSAN"`
-	Owner           string     `json:"owner" yaml:"owner"`
-	Env             string     `json:"env" yaml:"env"` // dev, uat, prd
-	AccessCred      AccessCred `json:"accessCred" yaml:"accessCred"`
-	Nodes           []*Node    `json:"nodes" yaml:"nodes"`
+	ClusterName     string
+	ClusterUUID     string
+	CurrentEndpoint string
+	InsecureTLS     bool
+	Active          bool
+	ZoneIdentifier  string
+	ClusterSAN      []string
+	ActiveEndpoint  string
+	KibanaSAN       []string
+	Owner           string
+	Env             string
+	ClusterPort     string // Default: "9200"
+	KibanaPort      string // Default: "5601"
+	AccessCred      AccessCred
+	Nodes           []*Node
 }
 
 // IndexInfo represents information about an index

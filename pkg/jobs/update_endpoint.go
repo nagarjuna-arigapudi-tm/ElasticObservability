@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"ElasticObservability/pkg/logger"
@@ -45,11 +46,11 @@ func UpdateActiveEndpoint(ctx context.Context, params map[string]interface{}) er
 
 		endpoint := findActiveEndpoint(cluster)
 		if endpoint != "" {
-			cluster.ActiveEndPoint = endpoint
+			cluster.ActiveEndpoint = endpoint
 			updatedCount++
 			logger.JobInfo("updateActiveEndpoint", "Cluster %s: Active endpoint set to %s", clusterName, endpoint)
 		} else {
-			cluster.ActiveEndPoint = ""
+			cluster.ActiveEndpoint = ""
 			failedCount++
 			logger.JobWarn("updateActiveEndpoint", "Cluster %s: Failed to find active endpoint", clusterName)
 		}
@@ -65,15 +66,24 @@ func findActiveEndpoint(cluster *types.ClusterData) string {
 		if endpoint == "" {
 			continue
 		}
-		if testConnection(endpoint, cluster) {
-			return endpoint
+		// Normalize endpoint: add https:// if no protocol, add ClusterPort if no port
+		normalizedEndpoint := normalizeEndpoint(endpoint, cluster.ClusterPort)
+		if testConnection(normalizedEndpoint, cluster) {
+			return normalizedEndpoint
 		}
 	}
 
 	// Try master nodes
 	for _, node := range cluster.Nodes {
 		if utils.Contains(node.Type, "master") {
-			endpoint := fmt.Sprintf("https://%s:%s", node.HostName, node.Port)
+			port := node.Port
+			if port == "" {
+				port = cluster.ClusterPort
+			}
+			if port == "" {
+				port = "9200"
+			}
+			endpoint := fmt.Sprintf("https://%s:%s", node.HostName, port)
 			if testConnection(endpoint, cluster) {
 				return endpoint
 			}
@@ -83,7 +93,14 @@ func findActiveEndpoint(cluster *types.ClusterData) string {
 	// Try kibana nodes
 	for _, node := range cluster.Nodes {
 		if utils.Contains(node.Type, "kibana") {
-			endpoint := fmt.Sprintf("https://%s:%s", node.HostName, node.KibanaPort)
+			port := node.KibanaPort
+			if port == "" {
+				port = cluster.KibanaPort
+			}
+			if port == "" {
+				port = "5601"
+			}
+			endpoint := fmt.Sprintf("https://%s:%s", node.HostName, port)
 			if testConnection(endpoint, cluster) {
 				return endpoint
 			}
@@ -92,13 +109,44 @@ func findActiveEndpoint(cluster *types.ClusterData) string {
 
 	// Try all remaining nodes
 	for _, node := range cluster.Nodes {
-		endpoint := fmt.Sprintf("https://%s:%s", node.HostName, node.Port)
+		port := node.Port
+		if port == "" {
+			port = cluster.ClusterPort
+		}
+		if port == "" {
+			port = "9200"
+		}
+		endpoint := fmt.Sprintf("https://%s:%s", node.HostName, port)
 		if testConnection(endpoint, cluster) {
 			return endpoint
 		}
 	}
 
 	return ""
+}
+
+// normalizeEndpoint adds https:// if no protocol and adds port if missing
+func normalizeEndpoint(endpoint string, defaultPort string) string {
+	// Add https:// if no protocol
+	if !strings.HasPrefix(endpoint, "http://") && !strings.HasPrefix(endpoint, "https://") {
+		endpoint = "https://" + endpoint
+	}
+
+	// Check if port is already in URL
+	// Simple check: if there's a colon after the hostname
+	parts := strings.Split(endpoint, "://")
+	if len(parts) == 2 {
+		hostPart := parts[1]
+		// If no port specified (no colon after hostname), add default port
+		if !strings.Contains(hostPart, ":") {
+			if defaultPort == "" {
+				defaultPort = "9200"
+			}
+			endpoint = fmt.Sprintf("%s://%s:%s", parts[0], hostPart, defaultPort)
+		}
+	}
+
+	return endpoint
 }
 
 func testConnection(endpoint string, cluster *types.ClusterData) bool {

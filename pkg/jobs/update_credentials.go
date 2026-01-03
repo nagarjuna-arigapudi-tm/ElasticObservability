@@ -111,4 +111,27 @@ func updateClusterCredentials(cluster *types.ClusterData, row map[string]string)
 	if caCert != "" {
 		cluster.AccessCred.CaCert = caCert
 	}
+
+	// Update ClusterPort
+	clusterPort := strings.TrimSpace(utils.GetValue(row, "ClusterPort"))
+	if clusterPort != "" {
+		cluster.ClusterPort = clusterPort
+	}
+
+	// Update ApplicationLBs (ClusterSAN)
+	applicationLBs := strings.TrimSpace(utils.GetValue(row, "ApplicationLBs"))
+	if applicationLBs != "" {
+		// Split by comma and trim whitespace
+		lbs := strings.Split(applicationLBs, ",")
+		clusterSAN := make([]string, 0, len(lbs))
+		for _, lb := range lbs {
+			trimmed := strings.TrimSpace(lb)
+			if trimmed != "" {
+				clusterSAN = append(clusterSAN, trimmed)
+			}
+		}
+		if len(clusterSAN) > 0 {
+			cluster.ClusterSAN = clusterSAN
+		}
+	}
 }
