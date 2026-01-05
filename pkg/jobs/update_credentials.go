@@ -121,8 +121,8 @@ func updateClusterCredentials(cluster *types.ClusterData, row map[string]string)
 	// Update ApplicationLBs (ClusterSAN)
 	applicationLBs := strings.TrimSpace(utils.GetValue(row, "ApplicationLBs"))
 	if applicationLBs != "" {
-		// Split by comma and trim whitespace
-		lbs := strings.Split(applicationLBs, ",")
+		// Split by pipe delimiter and trim whitespace
+		lbs := strings.Split(applicationLBs, "|")
 		clusterSAN := make([]string, 0, len(lbs))
 		for _, lb := range lbs {
 			trimmed := strings.TrimSpace(lb)

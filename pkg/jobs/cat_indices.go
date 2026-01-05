@@ -51,6 +51,13 @@ func RunCatIndices(ctx context.Context, params map[string]interface{}) error {
 			continue
 		}
 
+		// Skip clusters without credentials
+		if cluster.AccessCred.Preferred == 0 {
+			logger.JobInfo("runCatIndices", "Skipping cluster %s: No credentials available (Preferred=0)", clusterName)
+			failedCount++
+			continue
+		}
+
 		// Skip if no active endpoint
 		if cluster.ActiveEndpoint == "" {
 			logger.JobWarn("runCatIndices", "Cluster %s: No active endpoint, skipping", clusterName)

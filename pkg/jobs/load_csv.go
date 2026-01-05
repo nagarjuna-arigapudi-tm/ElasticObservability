@@ -176,9 +176,9 @@ func applyStraightMappingsCluster(cluster *types.ClusterData, row map[string]str
 		case "clusterName":
 			// Already handled
 		case "clusterSAN":
-			cluster.ClusterSAN = utils.SplitString(value, ",")
+			cluster.ClusterSAN = utils.SplitString(value, "|")
 		case "kibanaSAN":
-			cluster.KibanaSAN = utils.SplitString(value, ",")
+			cluster.KibanaSAN = utils.SplitString(value, "|")
 		case "owner":
 			cluster.Owner = value
 		case "clusterUUID":

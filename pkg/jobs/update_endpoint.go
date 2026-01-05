@@ -44,6 +44,13 @@ func UpdateActiveEndpoint(ctx context.Context, params map[string]interface{}) er
 			continue
 		}
 
+		// Skip clusters without credentials
+		if cluster.AccessCred.Preferred == 0 {
+			logger.JobInfo("updateActiveEndpoint", "Skipping cluster %s: No credentials available (Preferred=0)", clusterName)
+			cluster.ActiveEndpoint = ""
+			continue
+		}
+
 		endpoint := findActiveEndpoint(cluster)
 		if endpoint != "" {
 			cluster.ActiveEndpoint = endpoint
