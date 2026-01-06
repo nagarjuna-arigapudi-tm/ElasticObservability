@@ -119,7 +119,53 @@ func LoadGlobalConfig(configPath string) error {
 	return nil
 }
 
-// LoadJobConfigs loads job configurations from a directory
+// LoadInitializationJobs loads initialization job configurations from initialization_jobs file
+func LoadInitializationJobs(configDir string) ([]*JobConfig, error) {
+	// Try YAML first
+	yamlPath := filepath.Join(configDir, "initialization_jobs.yaml")
+	if _, err := os.Stat(yamlPath); err == nil {
+		return LoadJobConfigFile(yamlPath)
+	}
+
+	// Try YML
+	ymlPath := filepath.Join(configDir, "initialization_jobs.yml")
+	if _, err := os.Stat(ymlPath); err == nil {
+		return LoadJobConfigFile(ymlPath)
+	}
+
+	// Try JSON
+	jsonPath := filepath.Join(configDir, "initialization_jobs.json")
+	if _, err := os.Stat(jsonPath); err == nil {
+		return LoadJobConfigFile(jsonPath)
+	}
+
+	return nil, fmt.Errorf("initialization_jobs file not found in %s", configDir)
+}
+
+// LoadScheduledJobs loads scheduled job configurations from scheduled_jobs file
+func LoadScheduledJobs(configDir string) ([]*JobConfig, error) {
+	// Try YAML first
+	yamlPath := filepath.Join(configDir, "scheduled_jobs.yaml")
+	if _, err := os.Stat(yamlPath); err == nil {
+		return LoadJobConfigFile(yamlPath)
+	}
+
+	// Try YML
+	ymlPath := filepath.Join(configDir, "scheduled_jobs.yml")
+	if _, err := os.Stat(ymlPath); err == nil {
+		return LoadJobConfigFile(ymlPath)
+	}
+
+	// Try JSON
+	jsonPath := filepath.Join(configDir, "scheduled_jobs.json")
+	if _, err := os.Stat(jsonPath); err == nil {
+		return LoadJobConfigFile(jsonPath)
+	}
+
+	return nil, fmt.Errorf("scheduled_jobs file not found in %s", configDir)
+}
+
+// LoadJobConfigs loads job configurations from a directory (kept for backward compatibility)
 func LoadJobConfigs(configDir string) ([]*JobConfig, error) {
 	var jobs []*JobConfig
 

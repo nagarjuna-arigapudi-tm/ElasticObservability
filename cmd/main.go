@@ -59,9 +59,9 @@ func main() {
 	// Register predefined jobs
 	registerPredefinedJobs(sched)
 
-	// Load job configurations
-	if err := loadJobConfigurations(sched); err != nil {
-		logger.AppError("Failed to load job configurations: %v", err)
+	// Load and run initialization jobs first
+	if err := loadAndRunInitializationJobs(sched); err != nil {
+		logger.AppError("Failed to run initialization jobs: %v", err)
 		os.Exit(1)
 	}
 
@@ -71,10 +71,9 @@ func main() {
 		// Continue execution even if one-time jobs fail
 	}
 
-	// Run initialization jobs
-	logger.AppInfo("Running initialization jobs...")
-	if err := sched.RunInitJobs(); err != nil {
-		logger.AppError("Initialization jobs failed: %v", err)
+	// Load scheduled jobs
+	if err := loadScheduledJobs(sched); err != nil {
+		logger.AppError("Failed to load scheduled jobs: %v", err)
 		os.Exit(1)
 	}
 
@@ -165,6 +164,68 @@ func loadJobConfigurations(sched *scheduler.Scheduler) error {
 			logger.AppWarn("Failed to add job %s: %v", jobConfig.Name, err)
 			continue
 		}
+	}
+
+	return nil
+}
+
+func loadAndRunInitializationJobs(sched *scheduler.Scheduler) error {
+	// Ensure config directory exists
+	if err := os.MkdirAll(config.Global.ConfigDir, 0755); err != nil {
+		return fmt.Errorf("failed to create config directory: %w", err)
+	}
+
+	logger.AppInfo("Loading initialization jobs...")
+	jobConfigs, err := config.LoadInitializationJobs(config.Global.ConfigDir)
+	if err != nil {
+		return fmt.Errorf("failed to load initialization jobs: %w", err)
+	}
+
+	logger.AppInfo("Loaded %d initialization job(s)", len(jobConfigs))
+
+	// Add all initialization jobs to scheduler
+	for _, jobConfig := range jobConfigs {
+		if !jobConfig.Enabled {
+			logger.AppInfo("Skipping disabled initialization job: %s", jobConfig.Name)
+			continue
+		}
+
+		if err := sched.AddJob(jobConfig); err != nil {
+			return fmt.Errorf("failed to add initialization job %s: %w", jobConfig.Name, err)
+		}
+		logger.AppInfo("Added initialization job: %s", jobConfig.Name)
+	}
+
+	// Run all initialization jobs in order
+	logger.AppInfo("Running initialization jobs...")
+	if err := sched.RunInitJobs(); err != nil {
+		return fmt.Errorf("initialization jobs failed: %w", err)
+	}
+
+	logger.AppInfo("All initialization jobs completed successfully")
+	return nil
+}
+
+func loadScheduledJobs(sched *scheduler.Scheduler) error {
+	logger.AppInfo("Loading scheduled jobs...")
+	jobConfigs, err := config.LoadScheduledJobs(config.Global.ConfigDir)
+	if err != nil {
+		return fmt.Errorf("failed to load scheduled jobs: %w", err)
+	}
+
+	logger.AppInfo("Loaded %d scheduled job(s)", len(jobConfigs))
+
+	for _, jobConfig := range jobConfigs {
+		if !jobConfig.Enabled {
+			logger.AppInfo("Skipping disabled scheduled job: %s", jobConfig.Name)
+			continue
+		}
+
+		if err := sched.AddJob(jobConfig); err != nil {
+			logger.AppWarn("Failed to add scheduled job %s: %v", jobConfig.Name, err)
+			continue
+		}
+		logger.AppInfo("Added scheduled job: %s", jobConfig.Name)
 	}
 
 	return nil

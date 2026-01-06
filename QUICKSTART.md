@@ -46,7 +46,12 @@ historyForIndices: 20
 
 ### 3. Configure Jobs
 
-Edit `configs/jobs.yaml` to adjust job schedules and parameters.
+The application uses two separate job configuration files:
+
+- **`configs/initialization_jobs.yaml`** - Jobs that run once during application startup
+- **`configs/scheduled_jobs.yaml`** - Jobs that run on schedules
+
+Edit these files to adjust job schedules and parameters.
 
 ## Building
 
@@ -140,17 +145,19 @@ make help
 
 ```
 ElasticObservability/
-├── config.yaml              # Global configuration
+├── config.yaml                      # Global configuration
 ├── configs/
-│   ├── jobs.yaml           # Job definitions
-│   ├── oneTime/            # One-time jobs (auto-executed)
-│   └── processedOneTime/   # Processed one-time jobs
+│   ├── initialization_jobs.yaml    # Jobs that run at startup
+│   ├── scheduled_jobs.yaml         # Jobs that run on schedule
+│   ├── oneTime/                    # One-time jobs (auto-executed)
+│   └── processedOneTime/           # Processed one-time jobs
 ├── data/
-│   └── clusters.csv        # Cluster and node data
+│   ├── clusters.csv                # Cluster and node data
+│   └── credentials.csv             # Cluster credentials
 ├── logs/
-│   ├── application.log     # Application logs
-│   └── job.log            # Job execution logs
-└── outputs/                # Generated outputs
+│   ├── application.log             # Application logs
+│   └── job.log                     # Job execution logs
+└── outputs/                         # Generated outputs
 ```
 
 ## Authentication

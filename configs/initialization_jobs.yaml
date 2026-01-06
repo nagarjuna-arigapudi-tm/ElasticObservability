@@ -1,0 +1,55 @@
+jobs:
+  # Initialization job to load cluster data from CSV
+  - name: load_clusters
+    type: preDefined
+    internalJobName: loadFromMasterCSV
+    enabled: true
+    initJob: true
+    parameters:
+      csv_fileName: ./data/clusters.csv
+      inputMapping:
+        constant:
+          insecureTLS: true
+          port: "9200"
+        straight:
+          clusterName: "Cluster Name"
+          clusterSAN: "API Endpoint"
+          kibanaSAN: "Kibana Endpoint"
+          owner: "Owner"
+          hostName: "Node Name"
+          ipAddress: "IP Address"
+          zone: "Zone"
+          dataCenter: "Data Center"
+        derived:
+          - field: active
+            column: "Status"
+            function: boolStringCompare
+            arg: ["active", "managed", "production"]
+          - field: env
+            column: "Environment"
+            function: strStringCompare
+            arg: [["dev","development"], ["qa","testing","uat","qat"], ["prd","production","prod"]]
+            retVal: ["dev", "uat", "prd"]
+          - field: type
+            column: "Node Type"
+            function: splitString
+
+  # Update access credentials from CSV file (must run before endpoint validation)
+  - name: update_credentials
+    type: preDefined
+    internalJobName: updateAccessCredentials
+    enabled: true
+    initJob: true
+    dependsOn: ["load_clusters"]
+    parameters:
+      csv_fileName: ./data/credentials.csv
+
+  # Update active endpoints after loading credentials
+  - name: update_endpoints
+    type: preDefined
+    internalJobName: updateActiveEndpoint
+    enabled: true
+    initJob: true
+    dependsOn: ["update_credentials"]
+    parameters:
+      excludeClusters: []

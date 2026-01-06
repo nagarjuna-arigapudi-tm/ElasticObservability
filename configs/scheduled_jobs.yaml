@@ -1,0 +1,31 @@
+jobs:
+  # Periodic job to fetch indices information
+  - name: fetch_indices
+    type: preDefined
+    internalJobName: runCatIndices
+    enabled: true
+    schedule:
+      interval: 3m
+      initialWait: 1m
+    parameters:
+      excludeClusters: []
+
+  # Dependent job to analyze indexing rates
+  - name: analyze_rates
+    type: preDefined
+    internalJobName: analyseIngest
+    enabled: true
+    dependsOn: ["fetch_indices"]
+    parameters:
+      excludeClusters: []
+
+  # Periodic endpoint health check
+  - name: periodic_endpoint_check
+    type: preDefined
+    internalJobName: updateActiveEndpoint
+    enabled: true
+    schedule:
+      interval: 15m
+      initialWait: 5m
+    parameters:
+      excludeClusters: []
