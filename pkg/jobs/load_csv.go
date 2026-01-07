@@ -35,10 +35,28 @@ func LoadFromMasterCSV(ctx context.Context, params map[string]interface{}) error
 	rows := parser.GetRows()
 	logger.JobInfo("loadFromMasterCSV", "Parsed %d rows from CSV", len(rows))
 
+	// Get filter clusters list (optional)
+	filterClusters := make([]string, 0)
+	if filterParam, ok := params["filterClusters"].([]interface{}); ok {
+		for _, item := range filterParam {
+			if str, ok := item.(string); ok && str != "" {
+				filterClusters = append(filterClusters, str)
+			}
+		}
+	}
+
+	// Log filter information
+	if len(filterClusters) > 0 {
+		logger.JobInfo("loadFromMasterCSV", "Filter enabled: Only loading %d specific clusters", len(filterClusters))
+	} else {
+		logger.JobInfo("loadFromMasterCSV", "No filter: Loading all clusters from CSV")
+	}
+
 	// Process each row
 	addedClusters := 0
 	addedNodes := 0
 	skippedRows := 0
+	filteredClusters := 0
 
 	for rowIdx, row := range rows {
 		// Get cluster name
@@ -46,6 +64,13 @@ func LoadFromMasterCSV(ctx context.Context, params map[string]interface{}) error
 		if clusterName == "" {
 			logger.JobWarn("loadFromMasterCSV", "Row %d: Empty cluster name, skipping", rowIdx+1)
 			skippedRows++
+			continue
+		}
+
+		// Apply filter if filterClusters is specified
+		if len(filterClusters) > 0 && !utils.Contains(filterClusters, clusterName) {
+			logger.JobInfo("loadFromMasterCSV", "Row %d: Cluster %s not in filter list, skipping", rowIdx+1, clusterName)
+			filteredClusters++
 			continue
 		}
 
@@ -115,8 +140,20 @@ func LoadFromMasterCSV(ctx context.Context, params map[string]interface{}) error
 		}
 	}
 
-	logger.JobInfo("loadFromMasterCSV", "Completed: Added %d clusters, %d nodes. Skipped %d rows",
-		addedClusters, addedNodes, skippedRows)
+	// Populate AllClustersList from AllClusters keys
+	types.ClustersMu.Lock()
+	types.AllClustersList = make([]string, 0, len(types.AllClusters))
+	for clusterName := range types.AllClusters {
+		if clusterName != "" {
+			types.AllClustersList = append(types.AllClustersList, clusterName)
+		}
+	}
+	types.ClustersMu.Unlock()
+
+	logger.JobInfo("loadFromMasterCSV", "Completed: Added %d clusters, %d nodes. Skipped %d rows, Filtered %d clusters",
+		addedClusters, addedNodes, skippedRows, filteredClusters)
+	logger.JobInfo("loadFromMasterCSV", "Total clusters in AllClusters: %d, AllClustersList: %d",
+		len(types.AllClusters), len(types.AllClustersList))
 
 	return nil
 }
@@ -209,7 +246,7 @@ func applyDerivedFieldsCluster(cluster *types.ClusterData, row map[string]string
 		column, _ := derivedField["column"].(string)
 		function, _ := derivedField["function"].(string)
 		arg := derivedField["arg"]
-		retVal, _ := derivedField["retVal"].([]interface{})
+		retVal := derivedField["retVal"]
 
 		value := utils.GetValue(row, column)
 		if value == "" {
@@ -219,8 +256,8 @@ func applyDerivedFieldsCluster(cluster *types.ClusterData, row map[string]string
 		var result interface{}
 		var err error
 
-		if function == "strStringCompare" && retVal != nil {
-			// Special handling for strStringCompare
+		if function == "strStringCompare" {
+			// Special handling for strStringCompare - always pass as map
 			argsMap := map[string]interface{}{
 				"arg":    arg,
 				"retVal": retVal,
