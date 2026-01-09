@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -31,6 +32,33 @@ func RunCatIndices(ctx context.Context, params map[string]interface{}) error {
 				excludeClusters = append(excludeClusters, str)
 			}
 		}
+	}
+
+	// Get exclude indices patterns (optional)
+	excludeIndices := make([]string, 0)
+	if exclude, ok := params["excludeIndices"].([]interface{}); ok {
+		for _, item := range exclude {
+			if str, ok := item.(string); ok && str != "" {
+				excludeIndices = append(excludeIndices, str)
+			}
+		}
+	}
+
+	// Get include only indices patterns (optional)
+	includeOnlyIndices := make([]string, 0)
+	if include, ok := params["includeOnlyIndices"].([]interface{}); ok {
+		for _, item := range include {
+			if str, ok := item.(string); ok && str != "" {
+				includeOnlyIndices = append(includeOnlyIndices, str)
+			}
+		}
+	}
+
+	// Log filtering configuration
+	if len(includeOnlyIndices) > 0 {
+		logger.JobInfo("runCatIndices", "Index filter: includeOnlyIndices enabled with %d patterns (excludeIndices ignored)", len(includeOnlyIndices))
+	} else if len(excludeIndices) > 0 {
+		logger.JobInfo("runCatIndices", "Index filter: excludeIndices enabled with %d patterns", len(excludeIndices))
 	}
 
 	types.ClustersMu.RLock()
@@ -79,10 +107,26 @@ func RunCatIndices(ctx context.Context, params map[string]interface{}) error {
 			MapIndices:   make(map[string]*types.IndexInfo),
 		}
 
+		totalFetched := len(indices)
+		filteredCount := 0
+		duplicateCount := 0
+		indexBaseSeen := make(map[string]bool) // Track index bases to avoid duplicates
+
 		for _, idx := range indices {
 			indexInfo := parseIndexInfo(idx)
 			if indexInfo != nil {
-				snapshot.MapIndices[indexInfo.IndexBase] = indexInfo
+				// Apply index filtering
+				if shouldIncludeIndex(indexInfo.Index, includeOnlyIndices, excludeIndices) {
+					// Only add if this indexBase hasn't been seen before
+					if !indexBaseSeen[indexInfo.IndexBase] {
+						snapshot.MapIndices[indexInfo.Index] = indexInfo // Store by index name, not indexBase
+						indexBaseSeen[indexInfo.IndexBase] = true
+					} else {
+						duplicateCount++ // Skip duplicate indexBase
+					}
+				} else {
+					filteredCount++
+				}
 			}
 		}
 
@@ -97,11 +141,41 @@ func RunCatIndices(ctx context.Context, params map[string]interface{}) error {
 		types.HistoryMu.Unlock()
 
 		successCount++
-		logger.JobInfo("runCatIndices", "Cluster %s: Fetched %d indices", clusterName, len(snapshot.MapIndices))
+		if filteredCount > 0 || duplicateCount > 0 {
+			logger.JobInfo("runCatIndices", "Cluster %s: Fetched %d indices, filtered %d, duplicates %d, stored %d",
+				clusterName, totalFetched, filteredCount, duplicateCount, len(snapshot.MapIndices))
+		} else {
+			logger.JobInfo("runCatIndices", "Cluster %s: Fetched %d indices, stored %d",
+				clusterName, totalFetched, len(snapshot.MapIndices))
+		}
 	}
 
 	logger.JobInfo("runCatIndices", "Completed: %d clusters succeeded, %d failed", successCount, failedCount)
 	return nil
+}
+
+// shouldIncludeIndex determines if an index should be included based on filter patterns
+func shouldIncludeIndex(indexName string, includeOnlyPatterns []string, excludePatterns []string) bool {
+	// If includeOnlyPatterns is specified, it takes precedence
+	if len(includeOnlyPatterns) > 0 {
+		for _, pattern := range includeOnlyPatterns {
+			if matched, err := regexp.MatchString(pattern, indexName); err == nil && matched {
+				return true
+			}
+		}
+		return false // Not in include list
+	}
+
+	// If excludePatterns is specified, check if index matches any
+	if len(excludePatterns) > 0 {
+		for _, pattern := range excludePatterns {
+			if matched, err := regexp.MatchString(pattern, indexName); err == nil && matched {
+				return false // Matches exclude pattern
+			}
+		}
+	}
+
+	return true // Include by default
 }
 
 func fetchIndices(cluster *types.ClusterData) (CatIndicesResponse, error) {
@@ -114,7 +188,7 @@ func fetchIndices(cluster *types.ClusterData) (CatIndicesResponse, error) {
 		},
 	}
 
-	url := fmt.Sprintf("%s/_cat/indices?format=json&pretty&h=health,status,docs.count,index,pri,creation.date,store.size,pri.store.size",
+	url := fmt.Sprintf("%s/_cat/indices?format=json&pretty&h=health,status,docs.count,index,pri,creation.date,store.size,pri.store.size&s=creation.date:desc",
 		cluster.ActiveEndpoint)
 
 	req, err := http.NewRequest("GET", url, nil)

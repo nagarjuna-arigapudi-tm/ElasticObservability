@@ -9,6 +9,8 @@ jobs:
       initialWait: 1m
     parameters:
       excludeClusters: []
+      excludeIndices: []  # Optional: List of regex patterns to exclude indices
+      includeOnlyIndices: []  # Optional: List of regex patterns - only matching indices stored (overrides excludeIndices)
 
   # Dependent job to analyze indexing rates
   - name: analyze_rates
