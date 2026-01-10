@@ -11,15 +11,17 @@ jobs:
       excludeClusters: []
       excludeIndices: []  # Optional: List of regex patterns to exclude indices
       includeOnlyIndices: []  # Optional: List of regex patterns - only matching indices stored (overrides excludeIndices)
+      triggerJobs: ["analyze_rates"]  # Optional: Jobs to trigger after this job completes
 
-  # Dependent job to analyze indexing rates
+  # Dependent job to analyze indexing rates (also triggered by fetch_indices)
   - name: analyze_rates
     type: preDefined
     internalJobName: analyseIngest
     enabled: true
-    dependsOn: ["fetch_indices"]
+    dependsOn: ["fetch_indices"]  # Can still use dependsOn for clarity
     parameters:
       excludeClusters: []
+      triggerJobs: []  # Optional: Jobs to trigger after analysis completes
 
   # Periodic endpoint health check
   - name: periodic_endpoint_check

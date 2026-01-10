@@ -177,8 +177,9 @@ func (s *Scheduler) executeJob(job *Job) {
 		job.RunCount++
 		job.mu.Unlock()
 
-		// Execute dependent jobs
-		s.executeDependentJobs(job.Config.Name)
+		// Collect all jobs to trigger (from both dependsOn and triggerJobs)
+		// and execute them once, avoiding duplicates
+		s.executeAllTriggeredJobs(job)
 	}()
 
 	logger.JobInfo(job.Config.Name, "Starting job execution")
@@ -250,6 +251,64 @@ func (s *Scheduler) executeDependentJobs(completedJobName string) {
 
 		if exists {
 			go s.executeJob(job)
+		}
+	}
+}
+
+// executeAllTriggeredJobs collects jobs from both dependsOn and triggerJobs,
+// removes duplicates, and executes each job only once
+func (s *Scheduler) executeAllTriggeredJobs(completedJob *Job) {
+	// Use map to track unique job names
+	uniqueJobs := make(map[string]bool)
+
+	// Collect jobs from dependsOn (dependency map)
+	s.mu.RLock()
+	dependentJobs, hasDependents := s.dependencyMap[completedJob.Config.Name]
+	s.mu.RUnlock()
+
+	if hasDependents {
+		for _, jobName := range dependentJobs {
+			uniqueJobs[jobName] = true
+		}
+	}
+
+	// Collect jobs from triggerJobs parameter
+	if completedJob.Config.Parameters != nil {
+		if triggerJobsParam, ok := completedJob.Config.Parameters["triggerJobs"]; ok {
+			if triggerList, ok := triggerJobsParam.([]interface{}); ok {
+				for _, item := range triggerList {
+					if jobName, ok := item.(string); ok && jobName != "" {
+						uniqueJobs[jobName] = true
+					}
+				}
+			}
+		}
+	}
+
+	// If no jobs to trigger, return early
+	if len(uniqueJobs) == 0 {
+		return
+	}
+
+	// Convert map to slice for logging
+	jobNames := make([]string, 0, len(uniqueJobs))
+	for jobName := range uniqueJobs {
+		jobNames = append(jobNames, jobName)
+	}
+
+	logger.AppInfo("Triggering %d unique job(s) from %s: %v", len(uniqueJobs), completedJob.Config.Name, jobNames)
+
+	// Execute each unique job once
+	for jobName := range uniqueJobs {
+		s.mu.RLock()
+		job, exists := s.jobs[jobName]
+		s.mu.RUnlock()
+
+		if exists {
+			logger.AppInfo("Triggering job %s (from %s)", jobName, completedJob.Config.Name)
+			go s.executeJob(job)
+		} else {
+			logger.AppWarn("Trigger job %s not found (from %s)", jobName, completedJob.Config.Name)
 		}
 	}
 }
