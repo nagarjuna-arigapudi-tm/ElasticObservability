@@ -33,3 +33,16 @@ jobs:
       initialWait: 5m
     parameters:
       excludeClusters: []
+
+  # Daily statistics update job
+  - name: update_statsByDay
+    type: preDefined
+    internalJobName: updateStatsByDay
+    enabled: true
+    dependsOn: ["fetch_indices"]
+    schedule:
+      interval: 24h
+      initialWait: 2m
+    parameters:
+      excludeClusters: []
+      triggerJobs: []

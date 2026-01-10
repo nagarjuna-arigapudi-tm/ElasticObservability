@@ -2,6 +2,8 @@ logLevel: info
 metricsPort: 9091
 apiPort: 9092
 historyForIndices: 20
+historyOfStatsInDays: 30
+backupOfStatsInDays: ./data/backup/statsInDays.json
 out_dir: ./outputs
 config_dir: ./configs
 

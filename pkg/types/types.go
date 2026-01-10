@@ -88,17 +88,39 @@ type ClusterIndexingRate struct {
 	MapIndices map[string]*IndexingRate `json:"mapIndices"` // map[index_base]*IndexingRate
 }
 
+// IndexStat represents statistics for an index at a point in time
+type IndexStat struct {
+	StatTime  int64  `json:"statTime"`  // epoch milliseconds
+	TotalSize uint64 `json:"totalSize"` // total storage in bytes
+	DocCount  uint64 `json:"docCount"`  // document count
+}
+
+// IndexStatHistory maintains daily statistics for an index
+type IndexStatHistory struct {
+	IndexName string       `json:"indexName"`
+	SizeOfPtr uint8        `json:"sizeOfPtr"`
+	StatsPtr  []*IndexStat `json:"statsPtr"`
+}
+
+// IndicesStatsByDay maintains daily statistics for all indices in a cluster
+type IndicesStatsByDay struct {
+	LastUpdateTime int64                        `json:"lastUpdateTime"` // epoch milliseconds
+	StatHistory    map[string]*IndexStatHistory `json:"statHistory"`    // map[indexName]*IndexStatHistory
+}
+
 // Global data structures
 var (
 	AllClusters     map[string]*ClusterData         // map[clusterName]*ClusterData
 	AllClustersList []string                        // list of all cluster names
 	AllHistory      map[string]*IndicesHistory      // map[clusterName]*IndicesHistory
 	AllIndexingRate map[string]*ClusterIndexingRate // map[clusterName]*ClusterIndexingRate
+	AllStatsByDay   map[string]*IndicesStatsByDay   // map[clusterName]*IndicesStatsByDay
 
 	// Mutexes for thread-safe access
 	ClustersMu     sync.RWMutex
 	HistoryMu      sync.RWMutex
 	IndexingRateMu sync.RWMutex
+	StatsByDayMu   sync.RWMutex
 )
 
 func init() {
@@ -106,6 +128,7 @@ func init() {
 	AllClustersList = make([]string, 0)
 	AllHistory = make(map[string]*IndicesHistory)
 	AllIndexingRate = make(map[string]*ClusterIndexingRate)
+	AllStatsByDay = make(map[string]*IndicesStatsByDay)
 }
 
 // NewIndicesHistory creates a new IndicesHistory with specified size

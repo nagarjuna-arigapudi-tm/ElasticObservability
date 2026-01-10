@@ -38,6 +38,9 @@ func (s *Server) setupRoutes() {
 	// Indexing rate endpoints
 	s.router.HandleFunc("/api/indexingRate/{clusterName}", s.handleGetIndexingRate).Methods("GET")
 
+	// Stale indices endpoint
+	s.router.HandleFunc("/api/staleIndices/{clusterName}/{days}", s.handleGetStaleIndices).Methods("GET")
+
 	// Status endpoints
 	s.router.HandleFunc("/api/status", s.handleGetStatus).Methods("GET")
 	s.router.HandleFunc("/api/jobs", s.handleGetJobs).Methods("GET")
@@ -180,6 +183,129 @@ func (s *Server) handleGetJobs(w http.ResponseWriter, r *http.Request) {
 	jobStatus := s.scheduler.GetJobStatus()
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"jobs": jobStatus,
+	})
+}
+
+// handleGetStaleIndices returns indices that have not been modified in n days
+func (s *Server) handleGetStaleIndices(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	clusterName := vars["clusterName"]
+	daysStr := vars["days"]
+
+	// Validate cluster name
+	if !utils.ValidateClusterName(clusterName) {
+		respondError(w, http.StatusBadRequest, "Invalid cluster name")
+		return
+	}
+
+	// Parse days parameter
+	var days int
+	if _, err := fmt.Sscanf(daysStr, "%d", &days); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid days parameter, must be a positive integer")
+		return
+	}
+
+	if days < 1 {
+		respondError(w, http.StatusBadRequest, "Days parameter must be at least 1")
+		return
+	}
+
+	// Check if cluster exists
+	types.ClustersMu.RLock()
+	_, exists := types.AllClusters[clusterName]
+	types.ClustersMu.RUnlock()
+
+	if !exists {
+		respondError(w, http.StatusNotFound, "Cluster not found")
+		return
+	}
+
+	// Get stats for the cluster and make a copy (thread-safe)
+	types.StatsByDayMu.RLock()
+	clusterStats, hasStats := types.AllStatsByDay[clusterName]
+
+	if !hasStats || clusterStats == nil {
+		types.StatsByDayMu.RUnlock()
+		respondError(w, http.StatusNotFound, "Daily statistics not available for this cluster yet")
+		return
+	}
+
+	// Check if we have enough history
+	if clusterStats.StatHistory == nil || len(clusterStats.StatHistory) == 0 {
+		types.StatsByDayMu.RUnlock()
+		respondError(w, http.StatusNotFound, "No index statistics available")
+		return
+	}
+
+	// Make a copy of data we need for processing (shallow copy of map entries)
+	statHistoryCopy := make(map[string]*types.IndexStatHistory, len(clusterStats.StatHistory))
+	for indexName, statHistory := range clusterStats.StatHistory {
+		statHistoryCopy[indexName] = statHistory
+	}
+	lastUpdateTime := clusterStats.LastUpdateTime
+
+	// Release lock immediately after copying
+	types.StatsByDayMu.RUnlock()
+
+	// Now work on the copy without holding the lock
+	staleIndices := make([]map[string]interface{}, 0)
+	totalIndices := 0
+	insufficientData := 0
+
+	for indexName, statHistory := range statHistoryCopy {
+		totalIndices++
+
+		// Validate statHistory is not nil
+		if statHistory == nil {
+			logger.AppWarn("StatHistory is nil for index %s in cluster %s", indexName, clusterName)
+			insufficientData++
+			continue
+		}
+
+		// Validate StatsPtr array is not nil and has enough size
+		if statHistory.StatsPtr == nil || len(statHistory.StatsPtr) <= days {
+			insufficientData++
+			continue
+		}
+
+		// Get current stats (StatsPtr[0])
+		currentStats := statHistory.StatsPtr[0]
+		if currentStats == nil {
+			insufficientData++
+			continue
+		}
+
+		// Get stats from n days ago (StatsPtr[days])
+		oldStats := statHistory.StatsPtr[days]
+		if oldStats == nil {
+			// Not enough historical data yet
+			insufficientData++
+			continue
+		}
+
+		// Compare DocCount - if same, index hasn't been modified
+		if currentStats.DocCount == oldStats.DocCount {
+			staleIndices = append(staleIndices, map[string]interface{}{
+				"indexName":        indexName,
+				"docCount":         currentStats.DocCount,
+				"currentSize":      currentStats.TotalSize,
+				"currentTimestamp": currentStats.StatTime,
+				"oldSize":          oldStats.TotalSize,
+				"oldTimestamp":     oldStats.StatTime,
+				"daysStale":        days,
+				"sizeChange":       int64(currentStats.TotalSize) - int64(oldStats.TotalSize),
+			})
+		}
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"cluster":               clusterName,
+		"daysChecked":           days,
+		"totalIndices":          totalIndices,
+		"staleIndices":          staleIndices,
+		"staleCount":            len(staleIndices),
+		"insufficientDataCount": insufficientData,
+		"lastUpdateTime":        lastUpdateTime,
 	})
 }
 
