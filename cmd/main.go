@@ -144,6 +144,7 @@ func registerPredefinedJobs(sched *scheduler.Scheduler) {
 	sched.RegisterJobFunc("runCatIndices", jobs.RunCatIndices)
 	sched.RegisterJobFunc("analyseIngest", jobs.AnalyseIngest)
 	sched.RegisterJobFunc("updateStatsByDay", jobs.UpdateStatsByDay)
+	sched.RegisterJobFunc("getThreadPoolWriteQueue", jobs.GetThreadPoolWriteQueue)
 	logger.AppInfo("Predefined jobs registered")
 }
 

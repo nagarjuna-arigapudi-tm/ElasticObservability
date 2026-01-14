@@ -108,19 +108,35 @@ type IndicesStatsByDay struct {
 	StatHistory    map[string]*IndexStatHistory `json:"statHistory"`    // map[indexName]*IndexStatHistory
 }
 
+// TPWQueue stores thread pool write queue metrics for a host
+type TPWQueue struct {
+	NumberOfDataPoints    int      `json:"numberOfDataPoints"`
+	TimeStamps            []int64  `json:"timeStamps"`
+	ThreadPoolWriteQueues []uint32 `json:"threadPoolWriteQueues"`
+	DataExists            []bool   `json:"dataExists"`
+}
+
+// ClustersTPWQueue holds thread pool write queue data for all hosts in a cluster
+type ClustersTPWQueue struct {
+	HostnameList []string             `json:"hostnameList"`
+	HostTPWQueue map[string]*TPWQueue `json:"hostTPWQueue"` // map[hostName]*TPWQueue
+}
+
 // Global data structures
 var (
-	AllClusters     map[string]*ClusterData         // map[clusterName]*ClusterData
-	AllClustersList []string                        // list of all cluster names
-	AllHistory      map[string]*IndicesHistory      // map[clusterName]*IndicesHistory
-	AllIndexingRate map[string]*ClusterIndexingRate // map[clusterName]*ClusterIndexingRate
-	AllStatsByDay   map[string]*IndicesStatsByDay   // map[clusterName]*IndicesStatsByDay
+	AllClusters              map[string]*ClusterData         // map[clusterName]*ClusterData
+	AllClustersList          []string                        // list of all cluster names
+	AllHistory               map[string]*IndicesHistory      // map[clusterName]*IndicesHistory
+	AllIndexingRate          map[string]*ClusterIndexingRate // map[clusterName]*ClusterIndexingRate
+	AllStatsByDay            map[string]*IndicesStatsByDay   // map[clusterName]*IndicesStatsByDay
+	AllThreadPoolWriteQueues map[string]*ClustersTPWQueue    // map[clusterName]*ClustersTPWQueue
 
 	// Mutexes for thread-safe access
 	ClustersMu     sync.RWMutex
 	HistoryMu      sync.RWMutex
 	IndexingRateMu sync.RWMutex
 	StatsByDayMu   sync.RWMutex
+	TPWQueueMu     sync.RWMutex
 )
 
 func init() {
@@ -129,6 +145,7 @@ func init() {
 	AllHistory = make(map[string]*IndicesHistory)
 	AllIndexingRate = make(map[string]*ClusterIndexingRate)
 	AllStatsByDay = make(map[string]*IndicesStatsByDay)
+	AllThreadPoolWriteQueues = make(map[string]*ClustersTPWQueue)
 }
 
 // NewIndicesHistory creates a new IndicesHistory with specified size

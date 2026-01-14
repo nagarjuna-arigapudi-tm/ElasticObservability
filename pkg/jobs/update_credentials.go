@@ -68,6 +68,12 @@ func UpdateAccessCredentials(ctx context.Context, params map[string]interface{})
 }
 
 func updateClusterCredentials(cluster *types.ClusterData, row map[string]string) {
+	// Update ClusterUUID if provided
+	clusterUUID := strings.TrimSpace(utils.GetValue(row, "ClusterUUID"))
+	if clusterUUID != "" {
+		cluster.ClusterUUID = clusterUUID
+	}
+
 	// Parse PrefferedAccess (intentionally matching the typo from requirements)
 	preferredAccessStr := strings.TrimSpace(utils.GetValue(row, "PrefferedAccess"))
 	if preferredAccessStr != "" {

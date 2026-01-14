@@ -11,15 +11,16 @@ import (
 
 // GlobalConfig holds application-wide configuration
 type GlobalConfig struct {
-	LogLevel             string     `json:"logLevel" yaml:"logLevel"`
-	MetricsPort          int        `json:"metricsPort" yaml:"metricsPort"`
-	HistoryForIndices    uint8      `json:"historyForIndices" yaml:"historyForIndices"`
-	HistoryOfStatsInDays uint8      `json:"historyOfStatsInDays" yaml:"historyOfStatsInDays"`
-	BackupOfStatsInDays  string     `json:"backupOfStatsInDays" yaml:"backupOfStatsInDays"`
-	APIPort              int        `json:"apiPort" yaml:"apiPort"`
-	Cert                 CertConfig `json:"cert" yaml:"cert"`
-	OutDir               string     `json:"out_dir" yaml:"out_dir"`
-	ConfigDir            string     `json:"config_dir" yaml:"config_dir"`
+	LogLevel                     string     `json:"logLevel" yaml:"logLevel"`
+	MetricsPort                  int        `json:"metricsPort" yaml:"metricsPort"`
+	HistoryForIndices            uint8      `json:"historyForIndices" yaml:"historyForIndices"`
+	HistoryOfStatsInDays         uint8      `json:"historyOfStatsInDays" yaml:"historyOfStatsInDays"`
+	BackupOfStatsInDays          string     `json:"backupOfStatsInDays" yaml:"backupOfStatsInDays"`
+	ThreadPoolWriteQueueDataSets uint8      `json:"threadPoolWriteQueueDataSets" yaml:"threadPoolWriteQueueDataSets"`
+	APIPort                      int        `json:"apiPort" yaml:"apiPort"`
+	Cert                         CertConfig `json:"cert" yaml:"cert"`
+	OutDir                       string     `json:"out_dir" yaml:"out_dir"`
+	ConfigDir                    string     `json:"config_dir" yaml:"config_dir"`
 }
 
 // CertConfig holds certificate paths
@@ -110,6 +111,9 @@ func LoadGlobalConfig(configPath string) error {
 	}
 	if Global.BackupOfStatsInDays == "" {
 		Global.BackupOfStatsInDays = "./data/backup/statsInDays.json"
+	}
+	if Global.ThreadPoolWriteQueueDataSets == 0 {
+		Global.ThreadPoolWriteQueueDataSets = 6
 	}
 	if Global.OutDir == "" {
 		Global.OutDir = "./outputs"

@@ -46,3 +46,32 @@ jobs:
     parameters:
       excludeClusters: []
       triggerJobs: []
+
+  # Thread pool write queue monitoring job
+  - name: get_host_threadpool_metrics
+    type: preDefined
+    internalJobName: getThreadPoolWriteQueue
+    enabled: false  # Disabled by default - requires monitoring cluster setup
+    schedule:
+      interval: 10m
+      initialWait: 3m
+    parameters:
+      excludeClusters: []
+      triggerJobs: []
+      spanInterval: "30s"
+      timeSpan: "10m"
+      parallelRoutines: 5
+      insecureTLS: false
+      APIKEY: ""  # Set your monitoring cluster API key here
+      APIEndPoints:
+        - "https://monitoring-es:9200/.monitoring-es-*/_search"
+      # Optional: Custom query template (uses default if not specified)
+      # query: |
+      #   {
+      #     "aggs": { ... }
+      #   }
+      # Optional: Custom JSON paths (uses defaults if not specified)
+      # resultsJsonPaths:
+      #   hostName: "aggregations.hostname.buckets.key"
+      #   metrics: "aggregations.hostname.buckets.date_bucket.buckets.2.top_metrics.metrics.node_stats.thread_pool.write.queue"
+      #   metricTimestamp: "aggregations.hostname.buckets.date_bucket.buckets.key"

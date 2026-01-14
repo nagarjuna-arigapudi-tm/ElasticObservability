@@ -4,6 +4,7 @@ apiPort: 9092
 historyForIndices: 20
 historyOfStatsInDays: 30
 backupOfStatsInDays: ./data/backup/statsInDays.json
+threadPoolWriteQueueDataSets: 6
 out_dir: ./outputs
 config_dir: ./configs
 

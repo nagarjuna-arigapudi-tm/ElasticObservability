@@ -41,6 +41,10 @@ func (s *Server) setupRoutes() {
 	// Stale indices endpoint
 	s.router.HandleFunc("/api/staleIndices/{clusterName}/{days}", s.handleGetStaleIndices).Methods("GET")
 
+	// Thread Pool Write Queue endpoints
+	s.router.HandleFunc("/api/tpwqueue/{clusterName}", s.handleGetTPWQueueCluster).Methods("GET")
+	s.router.HandleFunc("/api/tpwqueue/{clusterName}/{hostName}", s.handleGetTPWQueueHost).Methods("GET")
+
 	// Status endpoints
 	s.router.HandleFunc("/api/status", s.handleGetStatus).Methods("GET")
 	s.router.HandleFunc("/api/jobs", s.handleGetJobs).Methods("GET")
@@ -306,6 +310,154 @@ func (s *Server) handleGetStaleIndices(w http.ResponseWriter, r *http.Request) {
 		"staleCount":            len(staleIndices),
 		"insufficientDataCount": insufficientData,
 		"lastUpdateTime":        lastUpdateTime,
+	})
+}
+
+// handleGetTPWQueueCluster returns thread pool write queue data for all hosts in a cluster
+func (s *Server) handleGetTPWQueueCluster(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	clusterName := vars["clusterName"]
+
+	// Validate cluster name
+	if !utils.ValidateClusterName(clusterName) {
+		respondError(w, http.StatusBadRequest, "Invalid cluster name")
+		return
+	}
+
+	// Check if cluster exists
+	types.ClustersMu.RLock()
+	_, exists := types.AllClusters[clusterName]
+	types.ClustersMu.RUnlock()
+
+	if !exists {
+		respondError(w, http.StatusNotFound, "Cluster not found")
+		return
+	}
+
+	// Get TPWQueue data for cluster (thread-safe)
+	types.TPWQueueMu.RLock()
+	clusterData, hasData := types.AllThreadPoolWriteQueues[clusterName]
+
+	if !hasData || clusterData == nil {
+		types.TPWQueueMu.RUnlock()
+		respondError(w, http.StatusNotFound, "Thread pool write queue data not available for this cluster yet")
+		return
+	}
+
+	// Make a copy of the data
+	hostnames := make([]string, len(clusterData.HostnameList))
+	copy(hostnames, clusterData.HostnameList)
+
+	hostsData := make(map[string]map[string]interface{})
+	for hostName, tpwq := range clusterData.HostTPWQueue {
+		if tpwq == nil {
+			continue
+		}
+
+		// Build data point arrays with only existing data
+		dataPoints := make([]map[string]interface{}, 0, tpwq.NumberOfDataPoints)
+		for i := 0; i < tpwq.NumberOfDataPoints; i++ {
+			if tpwq.DataExists[i] {
+				dataPoints = append(dataPoints, map[string]interface{}{
+					"timestamp": tpwq.TimeStamps[i],
+					"queue":     tpwq.ThreadPoolWriteQueues[i],
+					"index":     i,
+				})
+			}
+		}
+
+		hostsData[hostName] = map[string]interface{}{
+			"numberOfDataPoints": tpwq.NumberOfDataPoints,
+			"dataPoints":         dataPoints,
+			"dataPointCount":     len(dataPoints),
+		}
+	}
+	types.TPWQueueMu.RUnlock()
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"cluster":   clusterName,
+		"hostnames": hostnames,
+		"hostCount": len(hostnames),
+		"hosts":     hostsData,
+	})
+}
+
+// handleGetTPWQueueHost returns thread pool write queue data for a specific host
+func (s *Server) handleGetTPWQueueHost(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	clusterName := vars["clusterName"]
+	hostName := vars["hostName"]
+
+	// Validate cluster name
+	if !utils.ValidateClusterName(clusterName) {
+		respondError(w, http.StatusBadRequest, "Invalid cluster name")
+		return
+	}
+
+	if hostName == "" {
+		respondError(w, http.StatusBadRequest, "Host name is required")
+		return
+	}
+
+	// Check if cluster exists
+	types.ClustersMu.RLock()
+	_, exists := types.AllClusters[clusterName]
+	types.ClustersMu.RUnlock()
+
+	if !exists {
+		respondError(w, http.StatusNotFound, "Cluster not found")
+		return
+	}
+
+	// Get TPWQueue data for host (thread-safe)
+	types.TPWQueueMu.RLock()
+	clusterData, hasData := types.AllThreadPoolWriteQueues[clusterName]
+
+	if !hasData || clusterData == nil {
+		types.TPWQueueMu.RUnlock()
+		respondError(w, http.StatusNotFound, "Thread pool write queue data not available for this cluster yet")
+		return
+	}
+
+	tpwq, hostExists := clusterData.HostTPWQueue[hostName]
+	if !hostExists || tpwq == nil {
+		types.TPWQueueMu.RUnlock()
+		respondError(w, http.StatusNotFound, fmt.Sprintf("Host %s not found in cluster %s", hostName, clusterName))
+		return
+	}
+
+	// Build response with all data points
+	dataPoints := make([]map[string]interface{}, 0, tpwq.NumberOfDataPoints)
+	existingCount := 0
+	missingCount := 0
+
+	for i := 0; i < tpwq.NumberOfDataPoints; i++ {
+		point := map[string]interface{}{
+			"index":      i,
+			"dataExists": tpwq.DataExists[i],
+		}
+
+		if tpwq.DataExists[i] {
+			point["timestamp"] = tpwq.TimeStamps[i]
+			point["queue"] = tpwq.ThreadPoolWriteQueues[i]
+			existingCount++
+		} else {
+			point["timestamp"] = nil
+			point["queue"] = nil
+			missingCount++
+		}
+
+		dataPoints = append(dataPoints, point)
+	}
+	types.TPWQueueMu.RUnlock()
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"cluster":            clusterName,
+		"hostName":           hostName,
+		"numberOfDataPoints": tpwq.NumberOfDataPoints,
+		"existingCount":      existingCount,
+		"missingCount":       missingCount,
+		"dataPoints":         dataPoints,
 	})
 }
 
