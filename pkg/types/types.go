@@ -122,6 +122,13 @@ type ClustersTPWQueue struct {
 	HostTPWQueue map[string]*TPWQueue `json:"hostTPWQueue"` // map[hostName]*TPWQueue
 }
 
+// WritePressureEvent represents a write pressure event for a host
+type WritePressureEvent struct {
+	EventStartTime int64  `json:"eventStartTime"` // epoch seconds when the event started
+	HostName       string `json:"hostName"`
+	ClusterName    string `json:"clusterName"`
+}
+
 // Global data structures
 var (
 	AllClusters              map[string]*ClusterData         // map[clusterName]*ClusterData
@@ -130,13 +137,15 @@ var (
 	AllIndexingRate          map[string]*ClusterIndexingRate // map[clusterName]*ClusterIndexingRate
 	AllStatsByDay            map[string]*IndicesStatsByDay   // map[clusterName]*IndicesStatsByDay
 	AllThreadPoolWriteQueues map[string]*ClustersTPWQueue    // map[clusterName]*ClustersTPWQueue
+	WritePressureMap         map[string]*WritePressureEvent  // map[key]*WritePressureEvent, key="hostname_epochseconds"
 
 	// Mutexes for thread-safe access
-	ClustersMu     sync.RWMutex
-	HistoryMu      sync.RWMutex
-	IndexingRateMu sync.RWMutex
-	StatsByDayMu   sync.RWMutex
-	TPWQueueMu     sync.RWMutex
+	ClustersMu      sync.RWMutex
+	HistoryMu       sync.RWMutex
+	IndexingRateMu  sync.RWMutex
+	StatsByDayMu    sync.RWMutex
+	TPWQueueMu      sync.RWMutex
+	WritePressureMu sync.RWMutex
 )
 
 func init() {
@@ -146,6 +155,7 @@ func init() {
 	AllIndexingRate = make(map[string]*ClusterIndexingRate)
 	AllStatsByDay = make(map[string]*IndicesStatsByDay)
 	AllThreadPoolWriteQueues = make(map[string]*ClustersTPWQueue)
+	WritePressureMap = make(map[string]*WritePressureEvent)
 }
 
 // NewIndicesHistory creates a new IndicesHistory with specified size
