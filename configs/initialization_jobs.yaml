@@ -54,3 +54,12 @@ jobs:
     dependsOn: ["update_credentials"]
     parameters:
       excludeClusters: []
+
+  # Update current master node endpoints for all clusters
+  - name: update_master_endpoints
+    type: preDefined
+    internalJobName: updateCurrentMasterEndPoints
+    enabled: true
+    initJob: true
+    dependsOn: ["update_endpoints"]
+    parameters: {}

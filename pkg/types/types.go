@@ -131,21 +131,23 @@ type WritePressureEvent struct {
 
 // Global data structures
 var (
-	AllClusters              map[string]*ClusterData         // map[clusterName]*ClusterData
-	AllClustersList          []string                        // list of all cluster names
-	AllHistory               map[string]*IndicesHistory      // map[clusterName]*IndicesHistory
-	AllIndexingRate          map[string]*ClusterIndexingRate // map[clusterName]*ClusterIndexingRate
-	AllStatsByDay            map[string]*IndicesStatsByDay   // map[clusterName]*IndicesStatsByDay
-	AllThreadPoolWriteQueues map[string]*ClustersTPWQueue    // map[clusterName]*ClustersTPWQueue
-	WritePressureMap         map[string]*WritePressureEvent  // map[key]*WritePressureEvent, key="hostname_epochseconds"
+	AllClusters               map[string]*ClusterData         // map[clusterName]*ClusterData
+	AllClustersList           []string                        // list of all cluster names
+	AllHistory                map[string]*IndicesHistory      // map[clusterName]*IndicesHistory
+	AllIndexingRate           map[string]*ClusterIndexingRate // map[clusterName]*ClusterIndexingRate
+	AllStatsByDay             map[string]*IndicesStatsByDay   // map[clusterName]*IndicesStatsByDay
+	AllThreadPoolWriteQueues  map[string]*ClustersTPWQueue    // map[clusterName]*ClustersTPWQueue
+	WritePressureMap          map[string]*WritePressureEvent  // map[key]*WritePressureEvent, key="hostname_epochseconds"
+	AllCurrentMasterEndPoints map[string]string               // map[clusterName]masterEndpoint
 
 	// Mutexes for thread-safe access
-	ClustersMu      sync.RWMutex
-	HistoryMu       sync.RWMutex
-	IndexingRateMu  sync.RWMutex
-	StatsByDayMu    sync.RWMutex
-	TPWQueueMu      sync.RWMutex
-	WritePressureMu sync.RWMutex
+	ClustersMu            sync.RWMutex
+	HistoryMu             sync.RWMutex
+	IndexingRateMu        sync.RWMutex
+	StatsByDayMu          sync.RWMutex
+	TPWQueueMu            sync.RWMutex
+	WritePressureMu       sync.RWMutex
+	CurrentMasterEndPtsMu sync.RWMutex
 )
 
 func init() {
@@ -156,6 +158,7 @@ func init() {
 	AllStatsByDay = make(map[string]*IndicesStatsByDay)
 	AllThreadPoolWriteQueues = make(map[string]*ClustersTPWQueue)
 	WritePressureMap = make(map[string]*WritePressureEvent)
+	AllCurrentMasterEndPoints = make(map[string]string)
 }
 
 // NewIndicesHistory creates a new IndicesHistory with specified size

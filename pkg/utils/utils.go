@@ -1,11 +1,16 @@
 package utils
 
 import (
+	"crypto/tls"
 	"fmt"
+	"io"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"ElasticObservability/pkg/types"
 )
 
 // ToLower converts a string to lowercase
@@ -238,4 +243,120 @@ type realTime struct{}
 
 func (realTime) UnixNano() int64 {
 	return time.Now().UnixNano()
+}
+
+// GetCurrentMasterForCluster retrieves the current master node name for a given cluster
+// Returns the hostname of the master node, or empty string if unable to determine
+func GetCurrentMasterForCluster(clusterName string) string {
+	// Get cluster data
+	types.ClustersMu.RLock()
+	cluster, exists := types.AllClusters[clusterName]
+	types.ClustersMu.RUnlock()
+
+	if !exists {
+		return ""
+	}
+
+	// Construct endpoint
+	activeEndpoint := cluster.ActiveEndpoint
+	if activeEndpoint == "" {
+		return ""
+	}
+
+	// Ensure endpoint ends with /
+	if !strings.HasSuffix(activeEndpoint, "/") {
+		activeEndpoint += "/"
+	}
+
+	endpoint := activeEndpoint + "_cat/nodes?h=n,m"
+
+	// Create HTTP client
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: cluster.InsecureTLS,
+			},
+		},
+	}
+
+	// Create request
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return ""
+	}
+
+	// Add authentication
+	addAuthentication(req, &cluster.AccessCred)
+
+	// Perform request
+	resp, err := client.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+
+	// Check status code
+	if resp.StatusCode != 200 {
+		return ""
+	}
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ""
+	}
+
+	// Parse response to find master node
+	lines := strings.Split(strings.TrimSpace(string(body)), "\n")
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		// The master field will be '*' for the elected master node
+		if len(fields) >= 2 && fields[1] == "*" {
+			return fields[0]
+		}
+	}
+
+	return ""
+}
+
+// GetCurrentMasterEndpointForCluster retrieves the API endpoint for the current master node
+// Returns the endpoint URL (https://hostname:9200/), or empty string if unable to determine
+func GetCurrentMasterEndpointForCluster(clusterName string) string {
+	currentMaster := GetCurrentMasterForCluster(clusterName)
+	if currentMaster == "" {
+		return ""
+	}
+
+	// Get cluster data for port information
+	types.ClustersMu.RLock()
+	cluster, exists := types.AllClusters[clusterName]
+	types.ClustersMu.RUnlock()
+
+	port := "9200"
+	if exists && cluster.ClusterPort != "" {
+		port = cluster.ClusterPort
+	}
+
+	return fmt.Sprintf("https://%s:%s/", currentMaster, port)
+}
+
+// addAuthentication adds authentication headers to the HTTP request
+func addAuthentication(req *http.Request, cred *types.AccessCred) {
+	if cred == nil {
+		return
+	}
+
+	switch cred.Preferred {
+	case 1: // API Key
+		if cred.APIKey != "" {
+			req.Header.Set("Authorization", "ApiKey "+cred.APIKey)
+		}
+	case 2: // Basic Auth
+		if cred.UserID != "" && cred.Password != "" {
+			req.SetBasicAuth(cred.UserID, cred.Password)
+		}
+	case 3: // Certificate-based auth
+		// Certificate auth is handled at transport level, not via headers
+	}
 }

@@ -141,6 +141,7 @@ func registerPredefinedJobs(sched *scheduler.Scheduler) {
 	sched.RegisterJobFunc("loadFromMasterCSV", jobs.LoadFromMasterCSV)
 	sched.RegisterJobFunc("updateActiveEndpoint", jobs.UpdateActiveEndpoint)
 	sched.RegisterJobFunc("updateAccessCredentials", jobs.UpdateAccessCredentials)
+	sched.RegisterJobFunc("updateCurrentMasterEndPoints", jobs.UpdateCurrentMasterEndPoints)
 	sched.RegisterJobFunc("runCatIndices", jobs.RunCatIndices)
 	sched.RegisterJobFunc("analyseIngest", jobs.AnalyseIngest)
 	sched.RegisterJobFunc("updateStatsByDay", jobs.UpdateStatsByDay)
