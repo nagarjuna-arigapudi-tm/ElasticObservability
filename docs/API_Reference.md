@@ -261,6 +261,181 @@ Retrieve detailed thread pool write queue metrics for a specific host, including
 
 ---
 
+## Bulk Write Tasks Monitoring
+
+### List Clusters with Bulk Tasks History
+Get a list of all clusters with bulk write tasks monitoring data available.
+
+**Endpoint:** `GET /api/bulkTasks/clusters`
+
+**Response:**
+```json
+{
+  "clusters": [
+    {
+      "clusterName": "prod-cluster-01",
+      "historySize": 60,
+      "latestSnapshotTime": 1704567890
+    }
+  ],
+  "count": 1
+}
+```
+
+**Status Codes:**
+- `200 OK` - Success
+
+---
+
+### Get Bulk Tasks History
+Retrieve complete bulk write tasks history for a cluster (all snapshots).
+
+**Endpoint:** `GET /api/bulkTasks/{clusterName}`
+
+**Parameters:**
+- `clusterName` (path) - Name of the cluster
+
+**Response:**
+```json
+{
+  "clusterName": "prod-cluster-01",
+  "historySize": 60,
+  "latestSnapshotTime": 1704567890,
+  "snapshots": [
+    {
+      "snapShotTime": 1704567890,
+      "dataWriteBulkSTasksByNode": {...},
+      "sortedHostsOnTasks": [...],
+      "sortedHostsOnTimetaken": [...],
+      "sortedHostsOnRequest": [...],
+      "dataWriteBulkSTasksByIndex": {...},
+      "indicesSortedonTasks": [...],
+      "indicesSortedOnRequests": [...],
+      "indicesSortedOnTimetaken": [...]
+    }
+  ],
+  "snapshotCount": 60
+}
+```
+
+**Notes:**
+- Returns all historical snapshots (up to historySize)
+- Snapshots ordered by time (index 0 = latest)
+- Use for trend analysis and historical data
+
+**Status Codes:**
+- `200 OK` - Success
+- `400 Bad Request` - Invalid cluster name format
+- `404 Not Found` - Cluster not found or bulk tasks history not available
+
+---
+
+### Get Latest Bulk Tasks Snapshot
+Retrieve only the most recent bulk write tasks snapshot for a cluster (optimized for real-time dashboards).
+
+**Endpoint:** `GET /api/bulkTasks/{clusterName}/latest`
+
+**Parameters:**
+- `clusterName` (path) - Name of the cluster
+
+**Response:**
+```json
+{
+  "clusterName": "prod-cluster-01",
+  "latestSnapshotTime": 1704567890,
+  "snapshot": {
+    "snapShotTime": 1704567890,
+    "dataWriteBulkSTasksByNode": {
+      "host1.example.com": {
+        "totalWriteBulkSTasks": 45,
+        "totalWriteBulkSRequests": 12500,
+        "totalWriteBulkSTimeTakenMs": 85000,
+        "zone": "us-east-1a",
+        "dataWriteBulkSByShard": {
+          "myindex_0": {
+            "numberOfTasks": 5,
+            "totalRequests": 1200,
+            "totalTimeTakenMs": 8500
+          },
+          "myindex_1": {
+            "numberOfTasks": 3,
+            "totalRequests": 800,
+            "totalTimeTakenMs": 5000
+          }
+        },
+        "sortedShardsOnTasks": ["myindex_0", "myindex_1"],
+        "sortedShardsOnTimetaken": ["myindex_0", "myindex_1"],
+        "sortedShardsOnRequest": ["myindex_0", "myindex_1"]
+      },
+      "host2.example.com": {
+        "totalWriteBulkSTasks": 38,
+        "totalWriteBulkSRequests": 10000,
+        "totalWriteBulkSTimeTakenMs": 72000,
+        "zone": "us-east-1b",
+        "dataWriteBulkSByShard": {...},
+        "sortedShardsOnTasks": [...],
+        "sortedShardsOnTimetaken": [...],
+        "sortedShardsOnRequest": [...]
+      }
+    },
+    "sortedHostsOnTasks": ["host1.example.com", "host2.example.com"],
+    "sortedHostsOnTimetaken": ["host1.example.com", "host2.example.com"],
+    "sortedHostsOnRequest": ["host1.example.com", "host2.example.com"],
+    "dataWriteBulkSTasksByIndex": {
+      "myindex": {
+        "numberOfTasks": 25,
+        "totalRequests": 5000,
+        "totalTimeTakenMs": 45000
+      },
+      "otherindex": {
+        "numberOfTasks": 18,
+        "totalRequests": 3200,
+        "totalTimeTakenMs": 28000
+      }
+    },
+    "indicesSortedonTasks": ["myindex", "otherindex"],
+    "indicesSortedOnRequests": ["myindex", "otherindex"],
+    "indicesSortedOnTimetaken": ["myindex", "otherindex"]
+  }
+}
+```
+
+**Data Structure Explanation:**
+
+**Node-Level Data (`dataWriteBulkSTasksByNode`):**
+- `totalWriteBulkSTasks` - Total number of bulk write tasks on this node
+- `totalWriteBulkSRequests` - Total number of requests across all tasks
+- `totalWriteBulkSTimeTakenMs` - Total time taken in milliseconds
+- `zone` - Availability zone of the node (if available)
+- `dataWriteBulkSByShard` - Per-shard breakdown (key format: "indexName_shardNumber")
+- `sortedShardsOnTasks` - Shards sorted by task count (descending)
+- `sortedShardsOnTimetaken` - Shards sorted by time taken (descending)
+- `sortedShardsOnRequest` - Shards sorted by request count (descending)
+
+**Shard-Level Data (`dataWriteBulkSByShard`):**
+- `numberOfTasks` - Number of active bulk write tasks for this shard
+- `totalRequests` - Sum of all requests across tasks
+- `totalTimeTakenMs` - Sum of running time for all tasks
+
+**Cluster-Level Data:**
+- `sortedHostsOnTasks` - Hosts sorted by total task count (descending)
+- `sortedHostsOnTimetaken` - Hosts sorted by total time taken (descending)
+- `sortedHostsOnRequest` - Hosts sorted by total request count (descending)
+
+**Index-Level Data (`dataWriteBulkSTasksByIndex`):**
+- Aggregated metrics across all shards of an index
+- Same metrics as shard-level (tasks, requests, time taken)
+- `indicesSortedonTasks` - Indices sorted by task count (descending)
+- `indicesSortedOnRequests` - Indices sorted by request count (descending)
+- `indicesSortedOnTimetaken` - Indices sorted by time taken (descending)
+
+**Status Codes:**
+- `200 OK` - Success
+- `400 Bad Request` - Invalid cluster name format
+- `404 Not Found` - Cluster not found or no bulk tasks data available
+
+---
+
 ## Application Status
 
 ### Get Application Status

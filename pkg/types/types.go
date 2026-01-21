@@ -129,25 +129,67 @@ type WritePressureEvent struct {
 	ClusterName    string `json:"clusterName"`
 }
 
+// AggShardTaskDataWriteBulk_s aggregates bulk write task data for a shard
+type AggShardTaskDataWriteBulk_s struct {
+	NumberOfTasks     uint8  `json:"numberOfTasks"`
+	TotalRequests     uint   `json:"totalRequests"`
+	TotalTimeTaken_ms uint64 `json:"totalTimeTakenMs"`
+}
+
+// NodeDataWriteBulk_sTasks stores bulk write task data for a node
+type NodeDataWriteBulk_sTasks struct {
+	TotalWiteBulk_sTasks         uint                                    `json:"totalWriteBulkSTasks"`
+	TotalWriteBulk_sRequests     uint                                    `json:"totalWriteBulkSRequests"`
+	TotalWrietBulk_sTimeTaken_ms uint64                                  `json:"totalWriteBulkSTimeTakenMs"`
+	Zone                         string                                  `json:"zone"`
+	DataWriteBulk_sByShard       map[string]*AggShardTaskDataWriteBulk_s `json:"dataWriteBulkSByShard"` // key: index_shard
+	SortedShardsOnTasks          []string                                `json:"sortedShardsOnTasks"`
+	SortedShardsOnTimetaken      []string                                `json:"sortedShardsOnTimetaken"`
+	SortedShardsOnRequest        []string                                `json:"sortedShardsOnRequest"`
+}
+
+// ClusterDataWriteBulk_sTasks stores cluster-wide bulk write task data
+type ClusterDataWriteBulk_sTasks struct {
+	SnapShotTime                int64                                   `json:"snapShotTime"`              // epoch seconds
+	DataWriteBulk_sTasksByNode  map[string]*NodeDataWriteBulk_sTasks    `json:"dataWriteBulkSTasksByNode"` // key: hostName
+	SortedHostsOnTasks          []string                                `json:"sortedHostsOnTasks"`
+	SortedHostsOnTimetaken      []string                                `json:"sortedHostsOnTimetaken"`
+	SortedHostsOnRequest        []string                                `json:"sortedHostsOnRequest"`
+	DataWriteBulk_sTasksByIndex map[string]*AggShardTaskDataWriteBulk_s `json:"dataWriteBulkSTasksByIndex"` // key: index name
+	IndicesSortedonTasks        []string                                `json:"indicesSortedonTasks"`
+	IndicesSortedOnRequests     []string                                `json:"indicesSortedOnRequests"`
+	IndicesSortedOnTimetaken    []string                                `json:"indicesSortedOnTimetaken"`
+}
+
+// ClusterDataWriteBulk_sTasksHistory maintains history of bulk write tasks for a cluster
+type ClusterDataWriteBulk_sTasksHistory struct {
+	LatestSnapShotTime             int64                          `json:"latestSnapShotTime"` // epoch seconds
+	HistorySize                    uint                           `json:"historySize"`
+	ClusterName                    string                         `json:"clusterName"`
+	PtrClusterDataWriteBulk_sTasks []*ClusterDataWriteBulk_sTasks `json:"ptrClusterDataWriteBulkSTasks"`
+}
+
 // Global data structures
 var (
-	AllClusters               map[string]*ClusterData         // map[clusterName]*ClusterData
-	AllClustersList           []string                        // list of all cluster names
-	AllHistory                map[string]*IndicesHistory      // map[clusterName]*IndicesHistory
-	AllIndexingRate           map[string]*ClusterIndexingRate // map[clusterName]*ClusterIndexingRate
-	AllStatsByDay             map[string]*IndicesStatsByDay   // map[clusterName]*IndicesStatsByDay
-	AllThreadPoolWriteQueues  map[string]*ClustersTPWQueue    // map[clusterName]*ClustersTPWQueue
-	WritePressureMap          map[string]*WritePressureEvent  // map[key]*WritePressureEvent, key="hostname_epochseconds"
-	AllCurrentMasterEndPoints map[string]string               // map[clusterName]masterEndpoint
+	AllClusters                           map[string]*ClusterData                        // map[clusterName]*ClusterData
+	AllClustersList                       []string                                       // list of all cluster names
+	AllHistory                            map[string]*IndicesHistory                     // map[clusterName]*IndicesHistory
+	AllIndexingRate                       map[string]*ClusterIndexingRate                // map[clusterName]*ClusterIndexingRate
+	AllStatsByDay                         map[string]*IndicesStatsByDay                  // map[clusterName]*IndicesStatsByDay
+	AllThreadPoolWriteQueues              map[string]*ClustersTPWQueue                   // map[clusterName]*ClustersTPWQueue
+	WritePressureMap                      map[string]*WritePressureEvent                 // map[key]*WritePressureEvent, key="hostname_epochseconds"
+	AllCurrentMasterEndPoints             map[string]string                              // map[clusterName]masterEndpoint
+	AllClusterDataWriteBulk_sTasksHistory map[string]*ClusterDataWriteBulk_sTasksHistory // map[clusterName]*ClusterDataWriteBulk_sTasksHistory
 
 	// Mutexes for thread-safe access
-	ClustersMu            sync.RWMutex
-	HistoryMu             sync.RWMutex
-	IndexingRateMu        sync.RWMutex
-	StatsByDayMu          sync.RWMutex
-	TPWQueueMu            sync.RWMutex
-	WritePressureMu       sync.RWMutex
-	CurrentMasterEndPtsMu sync.RWMutex
+	ClustersMu                         sync.RWMutex
+	HistoryMu                          sync.RWMutex
+	IndexingRateMu                     sync.RWMutex
+	StatsByDayMu                       sync.RWMutex
+	TPWQueueMu                         sync.RWMutex
+	WritePressureMu                    sync.RWMutex
+	CurrentMasterEndPtsMu              sync.RWMutex
+	ClusterDataWriteBulkTasksHistoryMu sync.RWMutex
 )
 
 func init() {
@@ -159,6 +201,7 @@ func init() {
 	AllThreadPoolWriteQueues = make(map[string]*ClustersTPWQueue)
 	WritePressureMap = make(map[string]*WritePressureEvent)
 	AllCurrentMasterEndPoints = make(map[string]string)
+	AllClusterDataWriteBulk_sTasksHistory = make(map[string]*ClusterDataWriteBulk_sTasksHistory)
 }
 
 // NewIndicesHistory creates a new IndicesHistory with specified size

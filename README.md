@@ -9,6 +9,7 @@ A comprehensive Go-based service for monitoring and managing multiple Elasticsea
 - **Multi-Cluster Management**: Monitor and manage multiple Elasticsearch clusters
 - **Indexing Rate Analysis**: Track and analyze indexing rates per shard across time windows
 - **Thread Pool Monitoring**: Real-time monitoring of thread pool write queue depths from monitoring cluster
+- **Bulk Write Tasks Monitoring**: Track active bulk write operations across clusters with detailed shard-level metrics
 - **Daily Statistics**: Track index growth and changes over configurable time periods
 - **Stale Index Detection**: Identify indices with no modifications over n days
 - **Job Scheduling**: Flexible job scheduling with cron, interval, and dependency support
@@ -256,6 +257,11 @@ Place one-time job configurations in `configs/oneTime/` directory. After executi
 ### Thread Pool Write Queue
 - `GET /api/tpwqueue/{clusterName}` - Get TPWQueue metrics for all hosts in a cluster
 - `GET /api/tpwqueue/{clusterName}/{hostName}` - Get TPWQueue metrics for a specific host
+
+### Bulk Write Tasks Monitoring
+- `GET /api/bulkTasks/clusters` - List all clusters with bulk tasks history
+- `GET /api/bulkTasks/{clusterName}` - Get complete bulk tasks history for a cluster
+- `GET /api/bulkTasks/{clusterName}/latest` - Get latest bulk tasks snapshot for a cluster
 
 ### Application Status
 - `GET /api/status` - Application health and status

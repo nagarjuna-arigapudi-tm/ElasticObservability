@@ -65,3 +65,17 @@ jobs:
       thresholdValue: 700  # Default threshold for thread pool write queue (default: 700)
       noOfConsecutiveIntervals: 3  # Number of consecutive intervals above threshold to trigger alert (default: 3)
       considerMissingDataPoint: "missing"  # Options: "missing" (filter out), "nonOffending" (treat as below threshold), "offending" (treat as above threshold)
+
+  # Bulk write tasks monitoring job
+  - name: monitor_bulk_write_tasks
+    type: preDefined
+    internalJobName: getTDataWriteBulk_sTasks
+    enabled: true
+    schedule:
+      interval: 1m
+      initialWait: 2m
+    parameters:
+      excludeClusters: []  # Optional: List of cluster names to exclude
+      includeClusters: []  # Optional: List of cluster names to include (overrides excludeClusters if provided)
+      historySize: 60  # Number of historical snapshots to maintain (min: 10, max: 180, default: 60)
+      insecureTLS: false  # Whether to skip TLS verification (default: false)

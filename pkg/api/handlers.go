@@ -45,6 +45,11 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/tpwqueue/{clusterName}", s.handleGetTPWQueueCluster).Methods("GET")
 	s.router.HandleFunc("/api/tpwqueue/{clusterName}/{hostName}", s.handleGetTPWQueueHost).Methods("GET")
 
+	// Bulk Write Tasks endpoints
+	s.router.HandleFunc("/api/bulkTasks/clusters", s.handleGetBulkTasksClusters).Methods("GET")
+	s.router.HandleFunc("/api/bulkTasks/{clusterName}", s.handleGetBulkTasksHistory).Methods("GET")
+	s.router.HandleFunc("/api/bulkTasks/{clusterName}/latest", s.handleGetBulkTasksLatest).Methods("GET")
+
 	// Status endpoints
 	s.router.HandleFunc("/api/status", s.handleGetStatus).Methods("GET")
 	s.router.HandleFunc("/api/jobs", s.handleGetJobs).Methods("GET")
@@ -475,6 +480,109 @@ func (s *Server) handleTriggerJob(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"message": fmt.Sprintf("Job %s triggered successfully", jobName),
 	})
+}
+
+// handleGetBulkTasksClusters returns list of clusters with bulk tasks history
+func (s *Server) handleGetBulkTasksClusters(w http.ResponseWriter, r *http.Request) {
+	types.ClusterDataWriteBulkTasksHistoryMu.RLock()
+	clusters := make([]map[string]interface{}, 0, len(types.AllClusterDataWriteBulk_sTasksHistory))
+
+	for clusterName, history := range types.AllClusterDataWriteBulk_sTasksHistory {
+		if history != nil {
+			clusters = append(clusters, map[string]interface{}{
+				"clusterName":        clusterName,
+				"historySize":        history.HistorySize,
+				"latestSnapshotTime": history.LatestSnapShotTime,
+			})
+		}
+	}
+	types.ClusterDataWriteBulkTasksHistoryMu.RUnlock()
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"clusters": clusters,
+		"count":    len(clusters),
+	})
+}
+
+// handleGetBulkTasksHistory returns complete bulk tasks history for a cluster
+func (s *Server) handleGetBulkTasksHistory(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	clusterName := vars["clusterName"]
+
+	// Validate cluster name
+	if !utils.ValidateClusterName(clusterName) {
+		respondError(w, http.StatusBadRequest, "Invalid cluster name")
+		return
+	}
+
+	// Get history data (thread-safe)
+	types.ClusterDataWriteBulkTasksHistoryMu.RLock()
+	history, exists := types.AllClusterDataWriteBulk_sTasksHistory[clusterName]
+
+	if !exists || history == nil {
+		types.ClusterDataWriteBulkTasksHistoryMu.RUnlock()
+		respondError(w, http.StatusNotFound, "Bulk tasks history not available for this cluster yet")
+		return
+	}
+
+	// Build response with all snapshots
+	snapshots := make([]interface{}, 0, history.HistorySize)
+	for i := uint(0); i < history.HistorySize; i++ {
+		snapshot := history.PtrClusterDataWriteBulk_sTasks[i]
+		if snapshot != nil {
+			snapshots = append(snapshots, snapshot)
+		}
+	}
+
+	response := map[string]interface{}{
+		"clusterName":        history.ClusterName,
+		"historySize":        history.HistorySize,
+		"latestSnapshotTime": history.LatestSnapShotTime,
+		"snapshots":          snapshots,
+		"snapshotCount":      len(snapshots),
+	}
+	types.ClusterDataWriteBulkTasksHistoryMu.RUnlock()
+
+	respondJSON(w, http.StatusOK, response)
+}
+
+// handleGetBulkTasksLatest returns latest bulk tasks snapshot for a cluster
+func (s *Server) handleGetBulkTasksLatest(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	clusterName := vars["clusterName"]
+
+	// Validate cluster name
+	if !utils.ValidateClusterName(clusterName) {
+		respondError(w, http.StatusBadRequest, "Invalid cluster name")
+		return
+	}
+
+	// Get history data (thread-safe)
+	types.ClusterDataWriteBulkTasksHistoryMu.RLock()
+	history, exists := types.AllClusterDataWriteBulk_sTasksHistory[clusterName]
+
+	if !exists || history == nil {
+		types.ClusterDataWriteBulkTasksHistoryMu.RUnlock()
+		respondError(w, http.StatusNotFound, "Bulk tasks history not available for this cluster yet")
+		return
+	}
+
+	// Get latest snapshot (at index 0)
+	latestSnapshot := history.PtrClusterDataWriteBulk_sTasks[0]
+	if latestSnapshot == nil {
+		types.ClusterDataWriteBulkTasksHistoryMu.RUnlock()
+		respondError(w, http.StatusNotFound, "No bulk tasks data available yet")
+		return
+	}
+
+	response := map[string]interface{}{
+		"clusterName":        clusterName,
+		"snapshot":           latestSnapshot,
+		"latestSnapshotTime": history.LatestSnapShotTime,
+	}
+	types.ClusterDataWriteBulkTasksHistoryMu.RUnlock()
+
+	respondJSON(w, http.StatusOK, response)
 }
 
 // respondJSON sends a JSON response

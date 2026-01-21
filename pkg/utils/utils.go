@@ -287,7 +287,7 @@ func GetCurrentMasterForCluster(clusterName string) string {
 	}
 
 	// Add authentication
-	addAuthentication(req, &cluster.AccessCred)
+	AddAuthentication(req, &cluster.AccessCred)
 
 	// Perform request
 	resp, err := client.Do(req)
@@ -341,8 +341,8 @@ func GetCurrentMasterEndpointForCluster(clusterName string) string {
 	return fmt.Sprintf("https://%s:%s/", currentMaster, port)
 }
 
-// addAuthentication adds authentication headers to the HTTP request
-func addAuthentication(req *http.Request, cred *types.AccessCred) {
+// AddAuthentication adds authentication headers to the HTTP request
+func AddAuthentication(req *http.Request, cred *types.AccessCred) {
 	if cred == nil {
 		return
 	}
