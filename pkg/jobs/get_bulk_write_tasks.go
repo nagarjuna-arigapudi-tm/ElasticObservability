@@ -20,6 +20,7 @@ import (
 )
 
 // GetTDataWriteBulk_sTasks collects bulk write task data from Elasticsearch clusters
+// Processes clusters in parallel using goroutines with proper synchronization
 func GetTDataWriteBulk_sTasks(ctx context.Context, params map[string]interface{}) error {
 	logger.JobInfo("getTDataWriteBulk_sTasks", "Starting bulk write tasks monitoring job")
 
@@ -28,6 +29,7 @@ func GetTDataWriteBulk_sTasks(ctx context.Context, params map[string]interface{}
 	includeClusters := getStringSliceParam(params, "includeClusters")
 	historySize := getIntParam(params, "historySize", 60)
 	insecureTLS := getBoolParam(params, "insecureTLS", false)
+	maxConcurrent := getIntParam(params, "maxConcurrent", 9) // Default: process 5 clusters concurrently
 
 	// Validate and adjust historySize
 	if historySize < 10 {
@@ -38,20 +40,51 @@ func GetTDataWriteBulk_sTasks(ctx context.Context, params map[string]interface{}
 		logger.JobWarn("getTDataWriteBulk_sTasks", "historySize too large, using maximum value: 180")
 	}
 
-	logger.JobInfo("getTDataWriteBulk_sTasks", "Config: historySize=%d, insecureTLS=%v", historySize, insecureTLS)
+	// Validate maxConcurrent
+	if maxConcurrent < 1 {
+		maxConcurrent = 1
+	} else if maxConcurrent > 20 {
+		maxConcurrent = 20
+		logger.JobWarn("getTDataWriteBulk_sTasks", "maxConcurrent too large, using maximum value: 20")
+	}
+
+	logger.JobInfo("getTDataWriteBulk_sTasks", "Config: historySize=%d, insecureTLS=%v, maxConcurrent=%d",
+		historySize, insecureTLS, maxConcurrent)
 
 	// Build cluster list
 	clusterList := buildClusterList(includeClusters, excludeClusters)
-	logger.JobInfo("getTDataWriteBulk_sTasks", "Processing %d clusters", len(clusterList))
+	logger.JobInfo("getTDataWriteBulk_sTasks", "Processing %d clusters in parallel", len(clusterList))
 
-	// Process each cluster
+	// Process clusters in parallel with concurrency limit
+	type result struct {
+		clusterName string
+		err         error
+	}
+
+	results := make(chan result, len(clusterList))
+	semaphore := make(chan struct{}, maxConcurrent) // Limit concurrent goroutines
+
+	// Launch goroutines for each cluster
+	for _, clusterName := range clusterList {
+		// Acquire semaphore slot
+		semaphore <- struct{}{}
+
+		go func(name string) {
+			defer func() { <-semaphore }() // Release semaphore slot
+
+			err := processClusterBulkTasks(ctx, name, uint(historySize), insecureTLS)
+			results <- result{clusterName: name, err: err}
+		}(clusterName)
+	}
+
+	// Collect results
 	successCount := 0
 	failCount := 0
 
-	for _, clusterName := range clusterList {
-		err := processClusterBulkTasks(ctx, clusterName, uint(historySize), insecureTLS)
-		if err != nil {
-			logger.JobError("getTDataWriteBulk_sTasks", "Failed to process cluster %s: %v", clusterName, err)
+	for i := 0; i < len(clusterList); i++ {
+		res := <-results
+		if res.err != nil {
+			logger.JobError("getTDataWriteBulk_sTasks", "Failed to process cluster %s: %v", res.clusterName, res.err)
 			failCount++
 		} else {
 			successCount++

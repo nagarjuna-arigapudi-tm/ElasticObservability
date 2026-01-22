@@ -402,6 +402,271 @@ Scales linearly with:
 
 ---
 
+## 5. Bulk Write Tasks Monitoring Structure
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│  AllClusterDataWriteBulk_sTasksHistory: map[string]*ClusterDataWriteBulk   │
+│                                          _sTasksHistory                     │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  Key: "prod-cluster-01" ──────────┐                                       │
+│                                   │                                       │
+│  Key: "dev-cluster-01" ───────┐   │                                       │
+│                               │   │                                       │
+│  Key: "uat-cluster-01" ────┐  │   │                                       │
+│                            │  │   │                                       │
+│                            ▼  ▼   ▼                                       │
+│              ┌──────────────────────────────────────────┐                 │
+│              │  ClusterDataWriteBulk_sTasksHistory      │                 │
+│              │                                          │                 │
+│              │  LatestSnapShotTime: 1704567890 (epoch)  │                 │
+│              │  HistorySize:        60 (configurable)   │                 │
+│              │  ClusterName:        "prod-cluster-01"   │                 │
+│              │                                          │                 │
+│              │  PtrClusterDataWriteBulk_sTasks:         │                 │
+│              │  []*ClusterDataWriteBulk_sTasks          │                 │
+│              │  ├─ [0]  (Latest) ────────┐              │                 │
+│              │  ├─ [1]  (1 min ago) ──┐  │              │                 │
+│              │  ├─ [2]  (2 min ago) ┐ │  │              │                 │
+│              │  │  ...               │ │  │              │                 │
+│              │  └─ [59] (59 min ago)│ │  │              │                 │
+│              │                       │ │  │              │                 │
+│              └───────────────────────│─│──│──────────────┘                 │
+│                                      │ │  │                               │
+│                                      │ │  │                               │
+│     ┌────────────────────────────────┘ │  │                               │
+│     │  ┌─────────────────────────────────┘  │                               │
+│     │  │  ┌──────────────────────────────────┘                               │
+│     ▼  ▼  ▼                                                               │
+│  ┌───────────────────────────────────────────────────────────┐            │
+│  │        ClusterDataWriteBulk_sTasks (Snapshot)             │            │
+│  │                                                           │            │
+│  │  SnapShotTime: 1704567890 (epoch seconds)                │            │
+│  │                                                           │            │
+│  │  DataWriteBulk_sTasksByNode:                             │            │
+│  │  map[string]*NodeDataWriteBulk_sTasks                    │            │
+│  │  ├─ "host1.example.com" ───────┐                         │            │
+│  │  ├─ "host2.example.com" ────┐  │                         │            │
+│  │  └─ "host3.example.com" ─┐  │  │                         │            │
+│  │                          │  │  │                         │            │
+│  │  SortedHostsOnTasks:     ["host1", "host2", "host3"]    │            │
+│  │  SortedHostsOnTimetaken: ["host2", "host1", "host3"]    │            │
+│  │  SortedHostsOnRequest:   ["host1", "host3", "host2"]    │            │
+│  │                          │  │  │                         │            │
+│  │  DataWriteBulk_sTasksByIndex:                            │            │
+│  │  map[string]*AggShardTaskDataWriteBulk_s                 │            │
+│  │  ├─ "logs-app" ──────────────────┐                       │            │
+│  │  ├─ "metrics-system" ─────────┐  │                       │            │
+│  │  └─ "traces-api" ──────────┐  │  │                       │            │
+│  │                            │  │  │                       │            │
+│  │  IndicesSortedonTasks:     ["logs", "metrics", ...]     │            │
+│  │  IndicesSortedOnRequests:  ["logs", "traces", ...]      │            │
+│  │  IndicesSortedOnTimetaken: ["metrics", "logs", ...]     │            │
+│  │                            │  │  │                       │            │
+│  └────────────────────────────│──│──│───────────────────────┘            │
+│                               │  │  │                                    │
+│                               ▼  ▼  ▼                                    │
+│              ┌───────────────────────────────────────┐                   │
+│              │  AggShardTaskDataWriteBulk_s          │                   │
+│              │  (Used for both Index & Shard data)   │                   │
+│              │                                       │                   │
+│              │  NumberOfTasks:     5                 │                   │
+│              │  TotalRequests:     1200              │                   │
+│              │  TotalTimeTaken_ms: 8500              │                   │
+│              └───────────────────────────────────────┘                   │
+│                                                                            │
+│                      ┌──────────────────────────┐                         │
+│                      │  Back to Node data ▲     │                         │
+│                      └────────────────────│─────┘                         │
+│                                           │                               │
+│  ┌────────────────────────────────────────│───────────────────────┐      │
+│  │        NodeDataWriteBulk_sTasks        │                       │      │
+│  │                                        │                       │      │
+│  │  TotalWiteBulk_sTasks:         45     │                       │      │
+│  │  TotalWriteBulk_sRequests:     12500  │                       │      │
+│  │  TotalWrietBulk_sTimeTaken_ms: 85000  │                       │      │
+│  │  Zone:                         "us-east-1a"                   │      │
+│  │                                                               │      │
+│  │  DataWriteBulk_sByShard: map[string]*AggShardTaskDataWriteBulk_s│   │
+│  │  ├─ "logs-app_0" ───────────┐                                 │      │
+│  │  ├─ "logs-app_1" ────────┐  │                                 │      │
+│  │  ├─ "metrics-system_0" ┐ │  │                                 │      │
+│  │  └─ "metrics-system_1" │ │  │                                 │      │
+│  │                        │ │  │                                 │      │
+│  │  SortedShardsOnTasks:  │ │  │                                 │      │
+│  │    ["logs-app_0", "metrics-system_0", ...]                    │      │
+│  │                        │ │  │                                 │      │
+│  │  SortedShardsOnTimetaken:                                     │      │
+│  │    ["logs-app_0", "metrics-system_1", ...]                    │      │
+│  │                        │ │  │                                 │      │
+│  │  SortedShardsOnRequest:                                       │      │
+│  │    ["logs-app_0", "logs-app_1", ...]                          │      │
+│  │                        │ │  │                                 │      │
+│  └────────────────────────│─│──│───────────────────────────────┘      │
+│                           │ │  │                                       │
+│                           ▼ ▼  ▼                                       │
+│              ┌───────────────────────────────────────┐                  │
+│              │  AggShardTaskDataWriteBulk_s          │                  │
+│              │  (Shard: "logs-app_0")                │                  │
+│              │                                       │                  │
+│              │  NumberOfTasks:     5                 │                  │
+│              │  TotalRequests:     1200              │                  │
+│              │  TotalTimeTaken_ms: 8500              │                  │
+│              └───────────────────────────────────────┘                  │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Bulk Write Tasks Data Flow
+
+```
+Time ──────────────────────────────────────────────────────────────►
+
+T=2m    │ getTDataWriteBulk_sTasks (1st run)
+        │ ├─ Query: /_tasks?pretty&human&detailed=true
+        │ ├─ Filter: action = "indices:data/write/bulk[s]"
+        │ ├─ Parse: description = "requests[236], index[idx][2]"
+        │ ├─ Aggregate:
+        │ │  ├─ Shard Level:  "idx_2" → AggShardTaskDataWriteBulk_s
+        │ │  ├─ Node Level:   host → NodeDataWriteBulk_sTasks
+        │ │  ├─ Index Level:  "idx" → AggShardTaskDataWriteBulk_s
+        │ │  └─ Cluster Level: Complete snapshot
+        │ └─ Store: AllClusterDataWriteBulk_sTasksHistory[cluster].Ptr[0]
+        │
+T=3m    │ getTDataWriteBulk_sTasks (2nd run)
+        │ ├─ Roll over: Ptr[0] → Ptr[1]
+        │ └─ Store new: Ptr[0] = new snapshot
+        │
+T=4m    │ getTDataWriteBulk_sTasks (3rd run)
+        │ ├─ Roll over: Ptr[0] → Ptr[1], Ptr[1] → Ptr[2]
+        │ └─ Store new: Ptr[0] = new snapshot
+        │
+        │ ... (continues every minute)
+        │
+T=62m   │ getTDataWriteBulk_sTasks (60th run)
+        │ └─ Now have full 60-minute history (or configured historySize)
+```
+
+### Multi-level Aggregation
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  ELASTICSEARCH _tasks API RESPONSE                            │
+│  {                                                             │
+│    "nodes": {                                                  │
+│      "node_id_1": {                                            │
+│        "host": "host1.example.com",                            │
+│        "tasks": {                                              │
+│          "task_id_1": {                                        │
+│            "action": "indices:data/write/bulk[s]",             │
+│            "description": "requests[236], index[logs-app][0]", │
+│            "running_time_in_nanos": 8500000000                 │
+│          }                                                     │
+│        }                                                       │
+│      }                                                         │
+│    }                                                           │
+│  }                                                             │
+└────────────────────────────────────────────────────────────────┘
+                         │
+                         │ Parse & Aggregate
+                         ▼
+┌────────────────────────────────────────────────────────────────┐
+│  SHARD LEVEL: "logs-app_0"                                     │
+│  ├─ NumberOfTasks: 1                                           │
+│  ├─ TotalRequests: 236                                         │
+│  └─ TotalTimeTaken_ms: 8500                                    │
+└────────────────────────────────────────────────────────────────┘
+                         │
+                         │ Aggregate by Host
+                         ▼
+┌────────────────────────────────────────────────────────────────┐
+│  NODE LEVEL: "host1.example.com"                               │
+│  ├─ TotalWiteBulk_sTasks: 45 (sum of all shards)              │
+│  ├─ TotalWriteBulk_sRequests: 12500 (sum)                     │
+│  ├─ TotalWrietBulk_sTimeTaken_ms: 85000 (sum)                 │
+│  ├─ Zone: "us-east-1a"                                         │
+│  ├─ DataWriteBulk_sByShard: {                                 │
+│  │     "logs-app_0": {...},                                    │
+│  │     "logs-app_1": {...},                                    │
+│  │     ...                                                     │
+│  │  }                                                          │
+│  └─ SortedShardsOnTasks: ["logs-app_0", ...]                  │
+└────────────────────────────────────────────────────────────────┘
+                         │
+                         │ Aggregate by Index
+                         ▼
+┌────────────────────────────────────────────────────────────────┐
+│  INDEX LEVEL: "logs-app" (sum of _0, _1, _2 shards)           │
+│  ├─ NumberOfTasks: 25 (sum across all shards)                 │
+│  ├─ TotalRequests: 5000 (sum)                                 │
+│  └─ TotalTimeTaken_ms: 45000 (sum)                            │
+└────────────────────────────────────────────────────────────────┘
+                         │
+                         │ Aggregate all nodes
+                         ▼
+┌────────────────────────────────────────────────────────────────┐
+│  CLUSTER LEVEL: Complete snapshot                             │
+│  ├─ DataWriteBulk_sTasksByNode: {...all hosts...}             │
+│  ├─ SortedHostsOnTasks: [...busiest hosts first...]           │
+│  ├─ DataWriteBulk_sTasksByIndex: {...all indices...}          │
+│  └─ IndicesSortedonTasks: [...busiest indices first...]       │
+└────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 6. Thread Pool Write Queue Structure
+
+*[Existing TPWQueue structure documentation remains unchanged]*
+
+---
+
+## 7. Write Pressure Detection Structure
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  WritePressureMap: map[string]*WritePressureEvent              │
+│  Key format: "hostname_epochSeconds"                          │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  Key: "host1.example.com_1704567890" ──┐                      │
+│  Key: "host2.example.com_1704567920" ──┼──┐                   │
+│  Key: "host3.example.com_1704567950" ──┼──┼──┐                │
+│                                         │  │  │                │
+│                                         ▼  ▼  ▼                │
+│                    ┌───────────────────────────────┐           │
+│                    │  WritePressureEvent           │           │
+│                    │                               │           │
+│                    │  EventStartTime: 1704567890   │           │
+│                    │  HostName:       "host1..."   │           │
+│                    │  ClusterName:    "prod-..."   │           │
+│                    └───────────────────────────────┘           │
+│                                                                │
+│  Cleanup: Entries older than oldRunTime are removed           │
+└────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 8. Current Master Endpoints Structure
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  AllCurrentMasterEndPoints: map[string]string                  │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  Key: "prod-cluster-01" → "https://master-node-1:9200/"       │
+│  Key: "dev-cluster-01"  → "https://dev-master:9200/"          │
+│  Key: "uat-cluster-01"  → "https://uat-master:9200/"          │
+│                                                                │
+│  Updated by: updateCurrentMasterEndPoints (init job)           │
+│  Used by: getTDataWriteBulk_sTasks (periodic job)             │
+└────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Summary
 
 ### Key Relationships:
@@ -418,11 +683,69 @@ Scales linearly with:
    - History is input, IndexingRate is output
    - Calculated from historical snapshots
 
-4. **All structures share cluster names as keys**:
+4. **AllClusterDataWriteBulk_sTasksHistory** → **Bulk Write Monitoring**:
+   - Real-time bulk write task tracking
+   - Multi-level aggregation (shard, node, index, cluster)
+   - Historical snapshots (configurable 10-180, default 60)
+   - Pre-sorted data for quick access
+
+5. **AllCurrentMasterEndPoints** → **Master Node Detection**:
+   - Maps cluster names to current master endpoints
+   - Used by bulk write tasks monitoring
+   - Updated during initialization
+
+6. **WritePressureMap** → **Write Pressure Events**:
+   - Tracks write pressure events per host
+   - Key format: "hostname_epochSeconds"
+   - Automatic cleanup of old entries
+
+7. **All structures share cluster names as keys**:
    - Enables easy cross-referencing
    - Maintained by LoadFromMasterCSV job
 
 ### Data Flow:
 ```
 CSV Files → AllClusters → API Calls → AllHistory → AllIndexingRate → API Responses
+                                    ↓
+                    Master Endpoints Detection → Bulk Write Tasks Monitoring
+                                                ↓
+                                    Thread Pool Monitoring → Write Pressure Detection
+```
+
+### Thread Safety (Updated):
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Global Data Structure                    │  Mutex                  │
+├───────────────────────────────────────────┼─────────────────────────┤
+│  AllClusters                              │  ClustersMu             │
+│  AllClustersList                          │  ClustersMu             │
+│  AllHistory                               │  HistoryMu              │
+│  AllIndexingRate                          │  IndexingRateMu         │
+│  AllStatsByDay                            │  StatsByDayMu           │
+│  AllThreadPoolWriteQueues                 │  TPWQueueMu             │
+│  AllClusterDataWriteBulk_sTasksHistory    │  ClusterDataWrite...Mu  │
+│  WritePressureMap                         │  WritePressureMu        │
+│  AllCurrentMasterEndPoints                │  CurrentMasterEndPtsMu  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Memory Footprint (with all features):
+```
+Example with 3 clusters, monitoring all features:
+
+    AllClusters:                   3 × ~1KB                    ≈ 3 KB
+    AllHistory:                    3 × 21 × 100 indices        ≈ 630 KB
+    AllIndexingRate:               3 × 100 indices             ≈ 9 KB
+    AllStatsByDay:                 3 × 30 days × 100 indices   ≈ 900 KB
+    AllThreadPoolWriteQueues:      3 × 6 sets × 10 hosts       ≈ 180 KB
+    AllClusterDataWriteBulk...:    3 × 60 snapshots × 10 hosts ≈ 1.8 MB
+    WritePressureMap:              ~50 events                  ≈ 5 KB
+    AllCurrentMasterEndPoints:     3 entries                   ≈ 1 KB
+                                                      Total    ≈ 3.5 MB
+
+Memory scales with:
+    - Number of clusters
+    - History sizes (configurable per feature)
+    - Number of indices/hosts per cluster
+    - Monitoring frequency
 ```
